@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp*
+.pnp.js
+
+# Python/Pip
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ML / Saved Models / Data
+ml_pipeline/data/*
+!ml_pipeline/data/.gitkeep
+ml_pipeline/saved_models/*
+!ml_pipeline/saved_models/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
