@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import List
 
 # --- PATH RESOLUTION ---
 # This finds the root 'muleradar' folder so we can securely import 'ml_pipeline'
@@ -9,11 +10,16 @@ sys.path.append(str(BASE_DIR))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Dict
 
 # Import the ML Engine from the parallel folder
 from ml_pipeline.analyzer import MuleRiskAnalyzer
+
+# Import Pydantic schemas
+from app.schemas.models import (
+    RiskEvaluationResponse,
+    CopilotResponse,
+    BatchEvaluationRequest
+)
 
 app = FastAPI(
     title="MuleRadar API",
@@ -32,41 +38,6 @@ app.add_middleware(
 
 # --- INITIALIZE ML ENGINE ---
 analyzer_engine = MuleRiskAnalyzer()
-
-# ---------------------------------------------------------
-# PYDANTIC DATA MODELS
-# ---------------------------------------------------------
-
-class DamageMetrics(BaseModel):
-    recoverable_amount: float = Field(..., description="Potential funds that can be frozen/recovered")
-    in_transit_amount: float = Field(..., description="Funds currently moving through channels")
-
-class ShapContribution(BaseModel):
-    feature: str = Field(..., description="Name of the behavior flag")
-    contribution: float = Field(..., description="Impact weight on the final risk score")
-
-class NetworkNode(BaseModel):
-    id: str
-    type: str  # e.g., "mule", "smurf", "layering_layer", "cash_out"
-
-class NetworkEdge(BaseModel):
-    source: str
-    target: str
-    amount: float
-
-class NetworkGraph(BaseModel):
-    nodes: List[NetworkNode]
-    edges: List[NetworkEdge]
-
-# This is the master layout the frontend expects to receive
-class RiskEvaluationResponse(BaseModel):
-    account_id: str
-    risk_score: int = Field(..., ge=0, le=1000, description="Risk score scaled from 0 to 1000")
-    risk_level: str  # "Low", "Medium", "High", "Critical"
-    kill_chain_stage: str  # "Placement", "Layering", "Integration", "None"
-    damage_metrics: DamageMetrics
-    shap_explanation: List[ShapContribution]
-    network_connections: NetworkGraph
 
 # ---------------------------------------------------------
 # ENDPOINTS
@@ -92,14 +63,42 @@ def health_check():
 @app.post("/api/v1/evaluate/{account_id}", response_model=RiskEvaluationResponse)
 def evaluate_account(account_id: str):
     """
-    Evaluates an account ID against the detection pipeline.
+    Evaluates a single account ID against the detection pipeline.
     Returns structured risk metrics, network routing graphs, and explainable AI insights.
     """
     # Ask the ML engine to calculate the dynamic risk for this specific account
     intelligence_report = analyzer_engine.evaluate_account(account_id)
-    
     return intelligence_report
 
+@app.post("/api/v1/evaluate/batch/", response_model=List[RiskEvaluationResponse])
+def evaluate_batch(request: BatchEvaluationRequest):
+    """
+    Evaluates a list of account IDs against the detection pipeline.
+    Returns a list of structured risk intelligence reports.
+    """
+    results = []
+    for account_id in request.account_ids:
+        intelligence_report = analyzer_engine.evaluate_account(account_id)
+        results.append(intelligence_report)
+    return results
+
+@app.get("/api/v1/copilot/summarize/{account_id}", response_model=CopilotResponse)
+def summarize_account(account_id: str):
+    """
+    Provides a natural language summary explaining the risk intelligence report
+    for the copilot panel.
+    """
+    report = analyzer_engine.evaluate_account(account_id)
+    risk_level = report.get("risk_level", "Unknown")
+    risk_score = report.get("risk_score", 0)
+    kill_chain = report.get("kill_chain_stage", "None")
+    
+    summary = (
+        f"Account {account_id} is flagged with a {risk_level} risk level "
+        f"(Risk Score: {risk_score}/1000). The account is currently classified in the "
+        f"'{kill_chain}' stage of the money laundering kill chain."
+    )
+    return CopilotResponse(account_id=account_id, summary=summary)
 
 if __name__ == "__main__":
     import uvicorn
