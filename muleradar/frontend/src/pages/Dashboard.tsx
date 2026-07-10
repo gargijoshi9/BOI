@@ -1,10 +1,22 @@
+import Sidebar from '../components/Sidebar'
+import TopBar from '../components/TopBar'
+import MainGrid from '../components/MainGrid'
+import RightPanel from '../components/RightPanel'
+
 function Dashboard() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-        MuleRadar Dashboard
-      </h1>
-    </main>
+    <div className="flex h-screen w-screen flex-row overflow-hidden bg-background text-foreground">
+      <Sidebar />
+
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
+        <TopBar />
+
+        <div className="flex flex-1 flex-row overflow-hidden">
+          <MainGrid />
+          <RightPanel />
+        </div>
+      </div>
+    </div>
   )
 }
 
