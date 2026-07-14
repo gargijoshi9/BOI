@@ -99,3 +99,4 @@ if __name__ == "__main__":
     print("\nEdge Attributes:")
     for u, v, attrs in initializer.graph.edges(data=True):
         print(f"  Edge {u} -> {v}: {attrs}")
+# Hello
