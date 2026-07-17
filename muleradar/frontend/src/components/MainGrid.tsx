@@ -1,3 +1,5 @@
+import NetworkGraph from './NetworkGraph'
+
 const KILL_CHAIN_STAGES = [
   'Recruitment',
   'Preparation',
@@ -27,7 +29,8 @@ function WidgetTitle({ children }: { children: React.ReactNode }) {
 
 function MainGrid() {
   return (
-    <section className="flex h-full flex-1 flex-row gap-4 p-6">
+    <section className="flex h-full flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-row gap-4">
       {/* Widget 1 — Risk Score Panel */}
       <WidgetShell>
         <WidgetTitle>Risk Score</WidgetTitle>
@@ -96,6 +99,8 @@ function MainGrid() {
           Total Exposure: ₹8,50,000
         </p>
       </WidgetShell>
+      </div>
+      <NetworkGraph />
     </section>
   )
 }
