@@ -57,4 +57,11 @@ otherwise).
 4. Verify real inference is active:
    `python -c "from analyzer import MuleRiskAnalyzer; a = MuleRiskAnalyzer(); print(a.engine_status)"`
    Should print `Live Ensemble Model Active`. If it prints
-   `Dynamic Simulator Active`, step 1 or 3 was skipped.
+### Docker Compose (Full-Stack Deployment)
+1. Copy `.env.example` to `.env`:
+   `cp .env.example .env`
+2. Start all services (Backend + Frontend):
+   `docker compose up --build`
+3. Access the services:
+   - Backend API & Health check: `http://localhost:8000/health`
+   - Frontend Console: `http://localhost:3000`
