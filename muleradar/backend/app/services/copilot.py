@@ -1,8 +1,12 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
-load_dotenv()
+# Resolve the root 'muleradar' directory to load the .env file
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+dotenv_path = BASE_DIR / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 
 class AIInvestigator:
