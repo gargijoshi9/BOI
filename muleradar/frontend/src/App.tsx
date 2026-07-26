@@ -1,13 +1,20 @@
 import { Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
+import AccountsPage from './pages/AccountsPage'
+import NetworkPage from './pages/NetworkPage'
+import { DrawerProvider } from './context/DrawerContext'
 
 function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans antialiased">
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-      </Routes>
-    </div>
+    <DrawerProvider>
+      <div className="min-h-screen bg-background text-foreground font-sans antialiased">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/network" element={<NetworkPage />} />
+        </Routes>
+      </div>
+    </DrawerProvider>
   )
 }
 

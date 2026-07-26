@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Webkit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 0px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 #000000;
+}
+
 @layer base {
   html,
   body,
@@ -11,7 +36,25 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Animated ellipsis for loading states */
+@keyframes ellipsis-blink {
+  0% { opacity: 0.2; }
+  20% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+.ellipsis-dot {
+  animation: ellipsis-blink 1.4s infinite;
+}
+.ellipsis-dot:nth-child(2) { animation-delay: 0.2s; }
+.ellipsis-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Slide-in drawer transition */
+.drawer-slide {
+  transition: transform 300ms ease;
 }
