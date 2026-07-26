@@ -86,6 +86,13 @@ def evaluate_batch(request: BatchEvaluationRequest):
         results.append(intelligence_report)
     return results
 
+@app.get("/api/v1/accounts", response_model=List[RiskEvaluationResponse])
+def get_accounts(limit: int = 25):
+    """
+    Returns a list of accounts from the dataset, evaluated against the detection pipeline.
+    """
+    return analyzer_engine.get_accounts(limit)
+
 @app.get("/api/v1/copilot/summarize/{account_id}", response_model=CopilotResponse)
 async def summarize_account(account_id: str):
     """

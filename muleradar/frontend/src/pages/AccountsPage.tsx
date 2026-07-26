@@ -1,10 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageShell from '../components/PageShell'
-import AccountsTable, {
-  AccountsTableRow,
-  MOCK_ACCOUNT_ROWS,
-} from '../components/AccountsTable'
-import { RiskLevel } from '../api/client'
+import AccountsTable, { AccountsTableRow } from '../components/AccountsTable'
+import { RiskLevel, fetchAccounts } from '../api/client'
 
 type RiskFilter = 'ALL' | RiskLevel
 
@@ -13,11 +10,29 @@ const FILTERS: RiskFilter[] = ['ALL', 'Critical', 'High', 'Medium', 'Low']
 function AccountsPage() {
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<AccountsTableRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const rows: AccountsTableRow[] =
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        setLoading(true)
+        const data = await fetchAccounts(100)
+        setAccounts(data)
+      } catch (err) {
+        setError('Failed to fetch accounts from backend')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadAccounts()
+  }, [])
+
+  const rows =
     filter === 'ALL'
-      ? MOCK_ACCOUNT_ROWS
-      : MOCK_ACCOUNT_ROWS.filter((r) => r.risk_level === filter)
+      ? accounts
+      : accounts.filter((r) => r.risk_level === filter)
 
   return (
     <PageShell>
@@ -52,11 +67,20 @@ function AccountsPage() {
           })}
         </div>
 
-        <AccountsTable
-          rows={rows}
-          activeAccountId={activeAccountId}
-          onRowSelect={(id) => setActiveAccountId(id)}
-        />
+        {loading && (
+          <p className="text-xs text-foreground-muted">Loading directory...</p>
+        )}
+        {error && (
+          <p className="text-xs text-[#ef4444]">{error}</p>
+        )}
+
+        {!loading && !error && (
+          <AccountsTable
+            rows={rows}
+            activeAccountId={activeAccountId}
+            onRowSelect={(id) => setActiveAccountId(id)}
+          />
+        )}
       </div>
     </PageShell>
   )

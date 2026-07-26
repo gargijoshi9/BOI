@@ -92,11 +92,14 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
           layer: layerFor(v),
         }
       })
-      links = networkConnections.edges.map((e) => ({
-        source: e.source,
-        target: e.target,
-        amount: e.amount,
-      }))
+      const nodeIds = new Set(nodes.map((n) => n.id))
+      links = networkConnections.edges
+        .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+        .map((e) => ({
+          source: e.source,
+          target: e.target,
+          amount: e.amount,
+        }))
     } else {
       nodes = MOCK_NODES.map((n) => ({ ...n }))
       links = MOCK_LINKS.map((l) => ({ ...l }))

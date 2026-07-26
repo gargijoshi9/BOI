@@ -55,7 +55,7 @@ export interface AIAssistantSummaryResponse {
 // ---------- Base axios instance ----------
 
 export const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -94,4 +94,13 @@ export async function fetchAIAssistantSummary(
     `/api/v1/copilot/summarize/${accountId}`,
   )
   return data.summary
+}
+
+export async function fetchAccounts(
+  limit: number = 50,
+): Promise<RiskEvaluationResponse[]> {
+  const { data } = await api.get<RiskEvaluationResponse[]>('/api/v1/accounts', {
+    params: { limit },
+  })
+  return data
 }

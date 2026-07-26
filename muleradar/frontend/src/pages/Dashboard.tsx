@@ -1,8 +1,8 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import PageShell from '../components/PageShell'
 import MainGrid from '../components/MainGrid'
 import { useAccountEvaluation } from '../hooks/useAccountEvaluation'
-import { evaluateBatch } from '../api/client'
+import { evaluateBatch, fetchAccounts } from '../api/client'
 import { AccountsTableRow } from '../components/AccountsTable'
 
 function Dashboard() {
@@ -10,6 +10,18 @@ function Dashboard() {
   const [accountInput, setAccountInput] = useState('')
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<AccountsTableRow[]>([])
+
+  useEffect(() => {
+    async function loadInitialAccounts() {
+      try {
+        const initialAccounts = await fetchAccounts(25)
+        setAccounts(initialAccounts)
+      } catch (err) {
+        console.error('Failed to load initial accounts:', err)
+      }
+    }
+    loadInitialAccounts()
+  }, [])
 
   async function handleEvaluate(id: string) {
     const trimmed = id.trim()
