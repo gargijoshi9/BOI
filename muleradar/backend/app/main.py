@@ -36,8 +36,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- INITIALIZE ML ENGINE ---
+# Import AI Investigator Copilot Service
+from app.services.copilot import AIInvestigator
+
+# --- INITIALIZE ENGINES ---
 analyzer_engine = MuleRiskAnalyzer()
+copilot_service = AIInvestigator()
 
 # ---------------------------------------------------------
 # ENDPOINTS
@@ -82,22 +86,21 @@ def evaluate_batch(request: BatchEvaluationRequest):
         results.append(intelligence_report)
     return results
 
-@app.get("/api/v1/copilot/summarize/{account_id}", response_model=CopilotResponse)
-def summarize_account(account_id: str):
+@app.get("/api/v1/accounts", response_model=List[RiskEvaluationResponse])
+def get_accounts(limit: int = 25):
     """
-    Provides a natural language summary explaining the risk intelligence report
+    Returns a list of accounts from the dataset, evaluated against the detection pipeline.
+    """
+    return analyzer_engine.get_accounts(limit)
+
+@app.get("/api/v1/copilot/summarize/{account_id}", response_model=CopilotResponse)
+async def summarize_account(account_id: str):
+    """
+    Provides an asynchronous GenAI natural language summary explaining the risk intelligence report
     for the copilot panel.
     """
     report = analyzer_engine.evaluate_account(account_id)
-    risk_level = report.get("risk_level", "Unknown")
-    risk_score = report.get("risk_score", 0)
-    kill_chain = report.get("kill_chain_stage", "None")
-    
-    summary = (
-        f"Account {account_id} is flagged with a {risk_level} risk level "
-        f"(Risk Score: {risk_score}/1000). The account is currently classified in the "
-        f"'{kill_chain}' stage of the money laundering kill chain."
-    )
+    summary = await copilot_service.generate_summary(report)
     return CopilotResponse(account_id=account_id, summary=summary)
 
 if __name__ == "__main__":

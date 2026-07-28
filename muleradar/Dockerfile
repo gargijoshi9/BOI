@@ -8,19 +8,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system utilities (e.g. curl for healthchecks)
+# Install system utilities (e.g. curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements and install dependencies
+COPY backend/requirements.txt /app/backend/requirements.txt
+COPY ml_pipeline/requirements.txt /app/ml_pipeline/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-# Copy backend application source code
-COPY . .
+# Copy backend and ml_pipeline module trees
+COPY backend /app/backend
+COPY ml_pipeline /app/ml_pipeline
 
-# Expose backend port
+WORKDIR /app/backend
+
 EXPOSE 8000
 
 # Container healthcheck

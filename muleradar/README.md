@@ -41,3 +41,27 @@ muleradar/
 1. Navigate to `/frontend`
 2. Install dependencies: `npm install`
 3. Run the development server: `npm start`
+
+### ML Pipeline
+The dataset (`boi_dataset.csv`) and trained model artifacts (`saved_models/*.pkl`)
+are **not** included in this repository - they're excluded via `.gitignore`
+due to sensitive bank data. You must set these up locally before the
+backend can serve real predictions (it falls back to a labeled simulator
+otherwise).
+
+1. Place `boi_dataset.csv` in `ml_pipeline/data/`
+2. Navigate to `/ml_pipeline` and install dependencies:
+   `pip install -r requirements.txt`
+3. Train the model (generates the .pkl files the backend/analyzer needs):
+   `cd src/models && python train.py && cd ../..`
+4. Verify real inference is active:
+   `python -c "from analyzer import MuleRiskAnalyzer; a = MuleRiskAnalyzer(); print(a.engine_status)"`
+   Should print `Live Ensemble Model Active`. If it prints
+### Docker Compose (Full-Stack Deployment)
+1. Copy `.env.example` to `.env`:
+   `cp .env.example .env`
+2. Start all services (Backend + Frontend):
+   `docker compose up --build`
+3. Access the services:
+   - Backend API & Health check: `http://localhost:8000/health`
+   - Frontend Console: `http://localhost:3000`
