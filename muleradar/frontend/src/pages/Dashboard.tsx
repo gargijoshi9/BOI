@@ -38,6 +38,7 @@ function Dashboard() {
             risk_level: r.risk_level,
             kill_chain_stage: r.kill_chain_stage,
             damage_metrics: r.damage_metrics,
+            is_simulated: r.is_simulated,
           })),
         )
       }
@@ -91,6 +92,7 @@ function Dashboard() {
           damageMetrics={data?.damage_metrics}
           shapExplanation={data?.shap_explanation}
           networkConnections={data?.network_connections}
+          isSimulated={data?.is_simulated}
           accounts={accounts}
           activeAccountId={activeAccountId}
           onAccountSelect={(id) => {

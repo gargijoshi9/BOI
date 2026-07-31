@@ -1,4 +1,4 @@
-import { DamageMetrics, RiskLevel } from '../api/client'
+import { DamageMetrics, KillChainStage, RiskLevel } from '../api/client'
 import { RISK_COLORS } from './RiskScoreWidget'
 import { formatINR } from './DamageForecastWidget'
 
@@ -6,8 +6,9 @@ export interface AccountsTableRow {
   account_id: string
   risk_score: number
   risk_level: RiskLevel
-  kill_chain_stage: string
+  kill_chain_stage: KillChainStage
   damage_metrics?: DamageMetrics
+  is_simulated?: boolean
 }
 
 interface AccountsTableProps {
@@ -72,7 +73,17 @@ function AccountsTable({
                     }
                   >
                     <td className="px-4 py-3 font-mono text-foreground">
-                      {row.account_id}
+                      <span className="flex flex-row items-center gap-2">
+                        {row.account_id}
+                        {row.is_simulated && (
+                          <span
+                            title="Simulated result - no trained model artifacts matched this account. Not a verified prediction."
+                            className="inline-flex items-center bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"
+                          >
+                            Sim
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3 tabular-nums text-foreground">
                       {row.risk_score}

@@ -20,6 +20,7 @@ interface MainGridProps {
   damageMetrics?: DamageMetrics
   shapExplanation?: ShapFeature[]
   networkConnections?: NetworkConnections
+  isSimulated?: boolean
   accounts?: AccountsTableRow[]
   activeAccountId?: string | null
   onAccountSelect?: (accountId: string) => void
@@ -33,6 +34,7 @@ function MainGrid(props: MainGridProps) {
         <RiskScoreWidget
           riskScore={props.riskScore}
           riskLevel={props.riskLevel}
+          isSimulated={props.isSimulated}
         />
         <KillChainWidget killChainStage={props.killChainStage} />
         <DamageForecastWidget damageMetrics={props.damageMetrics} />

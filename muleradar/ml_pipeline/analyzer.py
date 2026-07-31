@@ -189,7 +189,10 @@ class MuleRiskAnalyzer:
                         {"id": account_id, "type": "mule" if risk_score > 600 else "normal"},
                     ],
                     "edges": []
-                }
+                },
+                # This result came from the real trained ensemble against a
+                # matched dataset row - never the fallback simulator.
+                "is_simulated": False,
             }
         except Exception as e:
             print(f"Real inference failed for {account_id}, falling back to simulator: {e}")
@@ -308,7 +311,12 @@ class MuleRiskAnalyzer:
                 "edges": [
                     {"source": account_id, "target": dest_id, "amount": round(in_transit * 0.8, 2)}
                 ]
-            }
+            },
+            # This result did NOT come from the trained ensemble - either
+            # no model artifacts exist yet, or account_id had no matching
+            # row in the source dataset. The frontend must never present
+            # this as a verified prediction.
+            "is_simulated": True,
         }
 
     # ------------------------------------------------------------------
