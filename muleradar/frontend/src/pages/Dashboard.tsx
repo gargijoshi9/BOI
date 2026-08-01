@@ -93,6 +93,7 @@ function Dashboard() {
           shapExplanation={data?.shap_explanation}
           networkConnections={data?.network_connections}
           isSimulated={data?.is_simulated}
+          evaluatedAccountId={data?.account_id}
           accounts={accounts}
           activeAccountId={activeAccountId}
           onAccountSelect={(id) => {

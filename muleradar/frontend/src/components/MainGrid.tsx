@@ -21,6 +21,7 @@ interface MainGridProps {
   shapExplanation?: ShapFeature[]
   networkConnections?: NetworkConnections
   isSimulated?: boolean
+  evaluatedAccountId?: string
   accounts?: AccountsTableRow[]
   activeAccountId?: string | null
   onAccountSelect?: (accountId: string) => void
@@ -44,7 +45,10 @@ function MainGrid(props: MainGridProps) {
       <ShapWidget shapExplanation={props.shapExplanation} />
 
       {/* Row 3 — Network graph */}
-      <NetworkGraph networkConnections={props.networkConnections} />
+      <NetworkGraph
+        networkConnections={props.networkConnections}
+        centralAccountId={props.evaluatedAccountId}
+      />
 
       {/* Row 4 — Accounts directory */}
       <AccountsTable

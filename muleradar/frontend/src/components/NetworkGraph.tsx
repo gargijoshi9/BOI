@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { NetworkConnections, NodeType } from '../api/client'
 
-// Visual type can be richer than the API's three values
-// API type: 'normal' | 'mule' | 'cash_out'
-// Internal visual: 'victim' | 'mule' | 'relay' | 'cash_out' (relay used by mock data)
+// Visual type can be richer than the API's four values
+// API type: 'normal' | 'mule' | 'cash_out' | 'relay'
+// Internal visual: 'victim' | 'mule' | 'relay' | 'cash_out'
 type VisualType = 'victim' | 'mule' | 'relay' | 'cash_out'
 
 type GraphNode = d3.SimulationNodeDatum & {
@@ -12,6 +12,7 @@ type GraphNode = d3.SimulationNodeDatum & {
   label: string
   type: VisualType
   layer: number
+  isCentral: boolean
 }
 
 type GraphLink = d3.SimulationLinkDatum<GraphNode> & {
@@ -22,6 +23,15 @@ type GraphLink = d3.SimulationLinkDatum<GraphNode> & {
 
 interface NetworkGraphProps {
   networkConnections?: NetworkConnections
+  // The account_id this graph is centered on (the account currently
+  // being viewed/evaluated). Needed because the central account's API
+  // type reflects its ACTUAL risk-derived type ('mule' or 'normal'),
+  // not a fixed "always distinct from neighbors" marker - without
+  // knowing which node is central, a low-risk central account with
+  // type 'normal' gets visually indistinguishable from its 'normal'
+  // upstream/downstream neighbors and collapses into the same layout
+  // column as them.
+  centralAccountId?: string
   height?: number
 }
 
@@ -32,7 +42,9 @@ const NODE_FILL: Record<VisualType, string> = {
   cash_out: '#8b5cf6',
 }
 
-const MOCK_NODES: GraphNode[] = [
+const CENTRAL_RING_COLOR = '#facc15' // amber - marks "this is the account you queried"
+
+const MOCK_NODES: { id: string; label: string; type: VisualType; layer: number }[] = [
   { id: 'V1', label: 'V1', type: 'victim', layer: 0 },
   { id: 'M1', label: 'M1', type: 'mule', layer: 1 },
   { id: 'M2', label: 'M2', type: 'mule', layer: 1 },
@@ -57,22 +69,28 @@ const STROKE_COLOR = '#FFFFFF'
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
 const formatRupee = (n: number) => '₹' + inr.format(n)
 
-// Map API node type → visual node type
+// Map API node type → visual node type.
 function apiToVisual(t: NodeType): VisualType {
   if (t === 'cash_out') return 'cash_out'
   if (t === 'mule') return 'mule'
+  if (t === 'relay') return 'relay'
   return 'victim' // 'normal' → 'victim'
 }
 
-// Choose a column index by visual type so real API data has a sensible layout
-function layerFor(t: VisualType): number {
+// FIX (Day 4 follow-up): layer assignment now takes isCentral into
+// account. The queried account always gets its own dedicated column
+// (layer 1) regardless of its risk-derived type, so it never collapses
+// into the same column as same-typed neighbor nodes (e.g. a low-risk
+// central account with type 'normal' no longer stacks on top of its
+// 'normal' upstream/downstream neighbors).
+function layerFor(t: VisualType, isCentral: boolean): number {
+  if (isCentral) return 1
   if (t === 'victim') return 0
-  if (t === 'mule') return 1
   if (t === 'relay') return 2
   return 3
 }
 
-function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
+function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: NetworkGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -85,11 +103,13 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
     if (networkConnections && networkConnections.nodes.length > 0) {
       nodes = networkConnections.nodes.map((n) => {
         const v = apiToVisual(n.type)
+        const isCentral = centralAccountId != null && n.id === centralAccountId
         return {
           id: n.id,
           label: n.id,
           type: v,
-          layer: layerFor(v),
+          layer: layerFor(v, isCentral),
+          isCentral,
         }
       })
       const nodeIds = new Set(nodes.map((n) => n.id))
@@ -101,7 +121,7 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
           amount: e.amount,
         }))
     } else {
-      nodes = MOCK_NODES.map((n) => ({ ...n }))
+      nodes = MOCK_NODES.map((n) => ({ ...n, isCentral: false }))
       links = MOCK_LINKS.map((l) => ({ ...l }))
     }
 
@@ -241,6 +261,16 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
             .attr('stroke', STROKE_COLOR)
             .attr('stroke-width', 1)
         }
+        // Amber outer ring for the central/queried account, so it's
+        // always visually identifiable regardless of its risk-based
+        // fill color.
+        if (d.isCentral) {
+          g.append('circle')
+            .attr('r', NODE_RADIUS + 5)
+            .attr('fill', 'none')
+            .attr('stroke', CENTRAL_RING_COLOR)
+            .attr('stroke-width', 2)
+        }
         g.append('circle')
           .attr('r', NODE_RADIUS)
           .attr('fill', fill)
@@ -267,7 +297,7 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
     draw(containerRef.current.getBoundingClientRect().width)
 
     return () => observer.disconnect()
-  }, [networkConnections, height])
+  }, [networkConnections, centralAccountId, height])
 
   return (
     <div
@@ -311,6 +341,13 @@ function NetworkGraph({ networkConnections, height = 320 }: NetworkGraphProps) {
             style={{ backgroundColor: NODE_FILL.cash_out }}
           />
           Cash-Out
+        </span>
+        <span className="flex flex-row items-center gap-2">
+          <span
+            className="inline-block h-3 w-3 rounded-full border-2"
+            style={{ borderColor: CENTRAL_RING_COLOR }}
+          />
+          Queried Account
         </span>
       </div>
     </div>
