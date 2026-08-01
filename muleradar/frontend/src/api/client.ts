@@ -79,6 +79,23 @@ export const api: AxiosInstance = axios.create({
   },
 })
 
+// Attach X-API-Key via a request interceptor rather than a static header
+// on the instance. This matters because:
+//   1. If VITE_API_KEY is unset (default local-dev state, matching the
+//      backend's own default no-auth state), we want to send NO header
+//      at all - not a header with the literal string "undefined".
+//   2. An interceptor re-evaluates the env value per request rather than
+//      baking it in once at module import time, which is more robust if
+//      the env is ever swapped at runtime in a future refactor.
+api.interceptors.request.use((config) => {
+  const apiKey = import.meta.env.VITE_API_KEY
+  if (apiKey) {
+    config.headers = config.headers ?? {}
+    config.headers['X-API-Key'] = apiKey
+  }
+  return config
+})
+
 // ---------- Endpoint functions ----------
 
 export async function fetchHealth(): Promise<HealthResponse> {
