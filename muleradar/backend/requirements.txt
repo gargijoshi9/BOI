@@ -1,6 +1,7 @@
 fastapi>=0.100.0
 uvicorn>=0.22.0
 pydantic>=2.0
+pydantic-settings>=2.0
 email-validator>=2.0
 python-multipart>=0.0.6
 openai>=1.0.0
@@ -14,3 +15,4 @@ xgboost==3.0.3
 lightgbm==4.6.0
 joblib==1.5.1
 shap==0.52.0
+networkx>=3.0

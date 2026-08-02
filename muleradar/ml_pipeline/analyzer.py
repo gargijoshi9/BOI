@@ -41,14 +41,20 @@ except ImportError:
 _ML_PIPELINE_DIR = Path(__file__).resolve().parent
 _SRC_DIR = _ML_PIPELINE_DIR / "src"
 _MODELS_DIR = _SRC_DIR / "models"
+_GRAPH_ENGINE_DIR = _SRC_DIR / "graph_engine"
 # src/ resolves "data_refinement.cleaner" and "feature_factory.features"
 # (pickled as package-qualified paths). src/models/ additionally resolves
 # the flat "ensemble_model" module (pickled as a top-level name because
 # train.py imports it directly from its own directory) - both are needed
 # for joblib.load() to fully reconstruct the ensemble object.
-for _p in (_SRC_DIR, _MODELS_DIR):
+# src/graph_engine/ resolves "graph_initializer" as a flat top-level
+# module the same way, since it's imported directly rather than as a
+# package (graph_engine/ has no __init__.py).
+for _p in (_SRC_DIR, _MODELS_DIR, _GRAPH_ENGINE_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
+
+from graph_initializer import TransactionGraphInitializer
 
 # saved_models/ and data/ are direct children of ml_pipeline/, same level
 # as this file.
@@ -65,6 +71,10 @@ DATASET_PATH = BASE_DIR / "data" / "boi_dataset.csv"
 # account's raw feature values.
 _INFLOW_COL = 'F2082'
 _CASH_OUT_COL = 'F2122'
+# Rough counterparty-count feature, used only to loosely bound the
+# synthesized network neighborhood size (see graph_initializer.py's
+# module docstring for what's real vs. synthesized here).
+_COUNTERPARTY_COL = 'F2678'
 
 
 class MuleRiskAnalyzer:
@@ -74,6 +84,7 @@ class MuleRiskAnalyzer:
         self.factory = None
         self._dataset_cache: Optional[pd.DataFrame] = None
         self._shap_explainer = None
+        self._graph_initializer = TransactionGraphInitializer()
 
         if MODEL_PATH.exists() and REFINER_PATH.exists() and FACTORY_PATH.exists():
             self.ensemble = joblib.load(MODEL_PATH)
@@ -135,6 +146,46 @@ class MuleRiskAnalyzer:
         return row
 
     # ------------------------------------------------------------------
+    # Network intelligence (Day 4)
+    # ------------------------------------------------------------------
+    def _build_network_connections(self, account_id: str, raw_row: pd.DataFrame, risk_score: int) -> dict:
+        """
+        Builds the network_connections payload for a real-inference
+        result using TransactionGraphInitializer. See
+        graph_engine/graph_initializer.py's module docstring for exactly
+        what's synthesized vs. genuinely computed here - in short: the
+        graph's edges are deterministically synthesized from this
+        account's own feature values (no real transaction ledger is
+        available yet), but PageRank/Louvain/betweenness-centrality are
+        run for real against that graph.
+        """
+        try:
+            inflow = float(raw_row[_INFLOW_COL].iloc[0]) if _INFLOW_COL in raw_row.columns and pd.notna(raw_row[_INFLOW_COL].iloc[0]) else 0.0
+            cash_out = float(raw_row[_CASH_OUT_COL].iloc[0]) if _CASH_OUT_COL in raw_row.columns and pd.notna(raw_row[_CASH_OUT_COL].iloc[0]) else 0.0
+
+            counterparty_hint = 0
+            if _COUNTERPARTY_COL in raw_row.columns and pd.notna(raw_row[_COUNTERPARTY_COL].iloc[0]):
+                try:
+                    counterparty_hint = int(raw_row[_COUNTERPARTY_COL].iloc[0])
+                except (ValueError, TypeError):
+                    counterparty_hint = 0
+
+            graph = self._graph_initializer.build_synthetic_account_neighborhood(
+                account_id=account_id,
+                risk_score=risk_score,
+                inflow=inflow,
+                cash_out=cash_out,
+                counterparty_hint=counterparty_hint,
+            )
+            return self._graph_initializer.compute_network_intelligence(graph, account_id)
+        except Exception as e:
+            print(f"Network intelligence build failed for {account_id}, falling back to single-node graph: {e}")
+            return {
+                "nodes": [{"id": account_id, "type": "mule" if risk_score > 600 else "normal"}],
+                "edges": [],
+            }
+
+    # ------------------------------------------------------------------
     # Real inference path
     # ------------------------------------------------------------------
     def _run_real_inference(self, account_id: str, raw_row: pd.DataFrame) -> Optional[dict]:
@@ -176,6 +227,7 @@ class MuleRiskAnalyzer:
 
             shap_explanation = self._explain(features)
             damage_metrics = self._estimate_damage(raw_row, proba)
+            network_connections = self._build_network_connections(account_id, raw_row, risk_score)
 
             return {
                 "account_id": account_id,
@@ -184,12 +236,10 @@ class MuleRiskAnalyzer:
                 "kill_chain_stage": stage,
                 "damage_metrics": damage_metrics,
                 "shap_explanation": shap_explanation,
-                "network_connections": {
-                    "nodes": [
-                        {"id": account_id, "type": "mule" if risk_score > 600 else "normal"},
-                    ],
-                    "edges": []
-                }
+                "network_connections": network_connections,
+                # This result came from the real trained ensemble against a
+                # matched dataset row - never the fallback simulator.
+                "is_simulated": False,
             }
         except Exception as e:
             print(f"Real inference failed for {account_id}, falling back to simulator: {e}")
@@ -308,7 +358,12 @@ class MuleRiskAnalyzer:
                 "edges": [
                     {"source": account_id, "target": dest_id, "amount": round(in_transit * 0.8, 2)}
                 ]
-            }
+            },
+            # This result did NOT come from the trained ensemble - either
+            # no model artifacts exist yet, or account_id had no matching
+            # row in the source dataset. The frontend must never present
+            # this as a verified prediction.
+            "is_simulated": True,
         }
 
     # ------------------------------------------------------------------
