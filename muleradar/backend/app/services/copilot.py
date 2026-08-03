@@ -17,12 +17,25 @@ class AIInvestigator:
 
     def __init__(self):
         api_key = os.getenv("OPENAI_API_KEY")
-        
+        base_url = os.getenv("OPENAI_BASE_URL")
+        model = os.getenv("OPENAI_MODEL")
+
+        if api_key and api_key.startswith("sk-or-v1-"):
+            if not base_url:
+                base_url = "https://openrouter.ai/api/v1"
+            if not model:
+                model = "openai/gpt-3.5-turbo"
+
+        self.model = model or "gpt-3.5-turbo"
+
         # Safe fallback check for missing or dummy API key
         if not api_key or api_key.strip().lower() in ["", "dummy", "test", "your_openai_api_key", "sk-dummy"] or api_key.startswith("your_"):
             self.client = None
         else:
-            self.client = AsyncOpenAI(api_key=api_key)
+            kwargs = {"api_key": api_key}
+            if base_url:
+                kwargs["base_url"] = base_url
+            self.client = AsyncOpenAI(**kwargs)
 
     async def generate_summary(self, intelligence_data: dict) -> str:
         """
@@ -55,7 +68,7 @@ class AIInvestigator:
             )
 
             response = await self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=self.model,
                 messages=[
                     {
                         "role": "system",
