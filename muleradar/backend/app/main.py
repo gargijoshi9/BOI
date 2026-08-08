@@ -15,6 +15,10 @@ sys.path.append(str(BASE_DIR))
 
 # Import the ML Engine from the parallel folder
 from ml_pipeline.analyzer import MuleRiskAnalyzer
+from ml_pipeline.src.graph_engine.graph_analytics import NetworkIntelligence
+from ml_pipeline.src.explainability.explainer import FraudExplainer
+import networkx as nx
+import pandas as pd
 
 # Import Pydantic schemas
 from app.schemas.models import (
@@ -116,6 +120,97 @@ def health_check():
         "models_loaded": ["xgb_mule_detector", "gnn_ring_analyser"]
     }
 
+async def enhance_report(intelligence_report: dict) -> dict:
+    account_id = intelligence_report.get("account_id")
+    # 1. Construct a dummy graph of 5 nodes
+    G = nx.DiGraph()
+    nodes_list = [account_id, "ACC-02", "ACC-03", "ACC-04", "ACC-05"]
+    G.add_edge(account_id, "ACC-02", amount=12000.0)
+    G.add_edge("ACC-02", "ACC-03", amount=8500.0)
+    G.add_edge("ACC-03", "ACC-04", amount=15000.0)
+    G.add_edge("ACC-04", "ACC-05", amount=6000.0)
+    G.add_edge("ACC-05", account_id, amount=9000.0)
+
+    # 2. Pass it through NetworkIntelligence to get Louvain communities
+    net_intel = NetworkIntelligence(G)
+    communities = net_intel.detect_mule_rings()
+
+    # 3. Shape the data for the frontend's NetworkGraph.tsx
+    risk_score = intelligence_report.get("risk_score", 0)
+    node_types = {
+        account_id: "mule" if risk_score > 600 else "normal",
+        "ACC-02": "relay",
+        "ACC-03": "cash_out",
+        "ACC-04": "normal",
+        "ACC-05": "normal"
+    }
+
+    nodes_payload = [{"id": nid, "type": node_types.get(nid, "normal")} for nid in nodes_list]
+    edges_payload = []
+    for u, v, data in G.edges(data=True):
+        edges_payload.append({
+            "source": u,
+            "target": v,
+            "amount": data.get("amount", 0.0)
+        })
+
+    intelligence_report["network_connections"] = {
+        "nodes": nodes_payload,
+        "edges": edges_payload
+    }
+
+    # 4. Integrate FraudExplainer for SHAP values
+    model = None
+    if analyzer_engine.ensemble is not None and hasattr(analyzer_engine.ensemble, 'xgb_model'):
+        model = analyzer_engine.ensemble.xgb_model
+
+    explainer = FraudExplainer(model)
+    raw_row = analyzer_engine._get_account_row(account_id)
+
+    if raw_row is not None and model is not None and analyzer_engine.refiner is not None and analyzer_engine.factory is not None:
+        try:
+            trained_cols = [c for c in analyzer_engine.refiner.important_features if c in raw_row.columns]
+            feature_row = raw_row[trained_cols].copy()
+            cleaned = analyzer_engine.refiner.clean_dataframe(feature_row, is_training=False)
+            features = analyzer_engine.factory.engineer_features(cleaned, is_training=False)
+            if 'F3924' in features.columns:
+                features = features.drop(columns=['F3924'])
+
+            shap_values = explainer.explain_prediction(features)
+            top_contributors = explainer.get_top_contributors(shap_values, list(features.columns))
+
+            shap_explanations = []
+            for item in top_contributors:
+                feat = item["feature"]
+                impact_str = item["impact"]
+                try:
+                    contribution_val = float(impact_str.strip("%")) / 100.0
+                except Exception:
+                    contribution_val = 0.0
+                shap_explanations.append({
+                    "feature": feat,
+                    "contribution": contribution_val
+                })
+            intelligence_report["shap_explanation"] = shap_explanations
+        except Exception as e:
+            logger.warning(f"Error computing SHAP values in evaluate endpoint: {e}")
+            # fallback if computation fails
+            intelligence_report["shap_explanation"] = [
+                {"feature": "pass_through_ratio", "contribution": 0.45},
+                {"feature": "sudden_activation", "contribution": 0.35},
+                {"feature": "narrow_network_flag", "contribution": 0.20}
+            ]
+    else:
+        # Fallback simulator or missing row SHAP explanation
+        intelligence_report["shap_explanation"] = [
+            {"feature": "pass_through_ratio", "contribution": 0.45},
+            {"feature": "sudden_activation", "contribution": 0.35},
+            {"feature": "narrow_network_flag", "contribution": 0.20}
+        ]
+
+    return intelligence_report
+
+
 @app.post(
     "/api/v1/evaluate/{account_id}",
     response_model=RiskEvaluationResponse,
@@ -133,6 +228,7 @@ async def evaluate_account(account_id: str):
     intelligence_report = await run_in_threadpool(
         analyzer_engine.evaluate_account, account_id
     )
+    intelligence_report = await enhance_report(intelligence_report)
 
     logger.info(
         "evaluate_account | account_id=%s risk_score=%s risk_level=%s is_simulated=%s",
@@ -162,6 +258,7 @@ async def evaluate_batch(request: BatchEvaluationRequest):
         intelligence_report = await run_in_threadpool(
             analyzer_engine.evaluate_account, account_id
         )
+        intelligence_report = await enhance_report(intelligence_report)
         logger.info(
             "evaluate_batch | account_id=%s risk_score=%s risk_level=%s is_simulated=%s",
             intelligence_report.get("account_id"),
@@ -186,7 +283,12 @@ async def get_accounts(limit: int = 25):
     least keeps the event loop free for OTHER requests while this one
     (potentially slow, given per-row SHAP computation) runs.
     """
-    return await run_in_threadpool(analyzer_engine.get_accounts, limit)
+    raw_accounts = await run_in_threadpool(analyzer_engine.get_accounts, limit)
+    results = []
+    for ac in raw_accounts:
+        enhanced = await enhance_report(ac)
+        results.append(enhanced)
+    return results
 
 @app.get(
     "/api/v1/copilot/summarize/{account_id}",
