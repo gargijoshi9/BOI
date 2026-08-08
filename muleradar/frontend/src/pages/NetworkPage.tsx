@@ -15,9 +15,17 @@ const STATS: StatCard[] = [
 
 function StatCard({ value, label }: StatCard) {
   return (
-    <div className="flex flex-1 flex-col border border-border bg-background p-5">
-      <span className="text-2xl font-bold text-foreground">{value}</span>
-      <span className="mt-2 text-xs uppercase tracking-widest text-foreground-muted">
+    <div className="glass glow-cyan flex flex-1 flex-col p-5">
+      <span className="text-2xl font-bold text-gradient-cyan-purple">
+        {value}
+      </span>
+      <span
+        className="mt-2 text-xs uppercase"
+        style={{
+          color: '#94a3b8',
+          letterSpacing: '0.18em',
+        }}
+      >
         {label}
       </span>
     </div>
@@ -29,10 +37,13 @@ function NetworkPage() {
     <PageShell>
       <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1
+            className="text-2xl"
+            style={{ color: '#f8fafc', fontWeight: 800 }}
+          >
             Transaction Network
           </h1>
-          <p className="mt-2 text-sm text-foreground-muted">
+          <p className="mt-2 text-sm" style={{ color: '#94a3b8' }}>
             Live fraud ring visualization
           </p>
         </div>

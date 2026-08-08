@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Webkit browsers (Chrome, Edge, Safari) */
+/* ---------- Webkit browsers (Chrome, Edge, Safari) ---------- */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -21,7 +21,7 @@
   background: #555555;
 }
 
-/* Firefox */
+/* ---------- Firefox ---------- */
 * {
   scrollbar-width: thin;
   scrollbar-color: #333333 #000000;
@@ -35,14 +35,17 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    background-color: #000000;
+    color: #f8fafc;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Animated ellipsis for loading states */
+/* ---------- Animated ellipsis for loading states ---------- */
 @keyframes ellipsis-blink {
   0% { opacity: 0.2; }
   20% { opacity: 1; }
@@ -54,7 +57,83 @@
 .ellipsis-dot:nth-child(2) { animation-delay: 0.2s; }
 .ellipsis-dot:nth-child(3) { animation-delay: 0.4s; }
 
-/* Slide-in drawer transition */
+/* ---------- Slide-in drawer transition ---------- */
 .drawer-slide {
   transition: transform 300ms ease;
+}
+
+/* ============================================================ */
+/* MuleRadar — Dark Fintech Theme                                 */
+/* ============================================================ */
+
+/* Glassmorphism surface — used on every widget, sidebar, drawer,
+   filter buttons, search input, etc. */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Cyan accent glow — paired with RiskScoreWidget. */
+.glow-cyan {
+  box-shadow:
+    0 0 20px rgba(34, 211, 238, 0.15),
+    0 0 60px rgba(34, 211, 238, 0.05);
+}
+
+/* Purple accent glow — paired with DamageForecastWidget. */
+.glow-purple {
+  box-shadow:
+    0 0 20px rgba(168, 85, 247, 0.15),
+    0 0 60px rgba(168, 85, 247, 0.05);
+}
+
+/* Cyan → purple text gradient — used on the headline risk score and
+   on the NetworkPage stat numbers. */
+.text-gradient-cyan-purple {
+  background: linear-gradient(135deg, #22d3ee, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---------- LIVE badge dot pulse ---------- */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.live-dot {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+/* ---------- SHAP bar width-on-mount ---------- */
+/* The bar starts at width 0 and animates to its target width when the
+   .shap-bar-animated class is applied via a short setTimeout after
+   first paint. */
+.shap-bar {
+  transition: width 800ms ease;
+}
+.shap-bar-initial {
+  width: 0 !important;
+}
+
+/* ---------- AI drawer cyan edge glow ---------- */
+.ai-drawer-edge-glow {
+  box-shadow: -8px 0 32px rgba(34, 211, 238, 0.06);
+}
+
+/* ---------- Drag handle hover state ---------- */
+.drawer-drag-handle {
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.drawer-drag-handle:hover {
+  background-color: rgba(34, 211, 238, 0.15);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.2);
+}
+
+/* 3D Perspective for Landing Page Cards */
+.perspective-1000 {
+  perspective: 1000px;
 }

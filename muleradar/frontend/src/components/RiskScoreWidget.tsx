@@ -13,9 +13,27 @@ const RISK_COLORS: Record<RiskLevel, string> = {
   Low: '#22c55e',
 }
 
-function WidgetShell({ children }: { children: React.ReactNode }) {
+// Tier-matched glow shadows for the Risk Level badge — same hues as
+// the palette, kept subtle so the badge stays legible.
+const RISK_GLOWS: Record<RiskLevel, string> = {
+  Critical: '0 0 12px rgba(239, 68, 68, 0.4)',
+  High: '0 0 12px rgba(249, 115, 22, 0.4)',
+  Medium: '0 0 12px rgba(234, 179, 8, 0.4)',
+  Low: '0 0 12px rgba(34, 197, 94, 0.4)',
+}
+
+// Default glass widget shell — used by every widget. The base look is
+// glassmorphism; individual widgets layer glow-cyan / glow-purple on
+// top via the `extraClassName` slot.
+function WidgetShell({
+  children,
+  extraClassName = '',
+}: {
+  children: React.ReactNode
+  extraClassName?: string
+}) {
   return (
-    <div className="flex flex-1 flex-col border border-border bg-background p-7">
+    <div className={`glass flex flex-1 flex-col p-7 ${extraClassName}`}>
       {children}
     </div>
   )
@@ -23,7 +41,13 @@ function WidgetShell({ children }: { children: React.ReactNode }) {
 
 function WidgetTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-medium uppercase tracking-widest text-foreground-muted">
+    <h3
+      className="text-xs font-medium uppercase"
+      style={{
+        letterSpacing: '0.18em',
+        color: '#cbd5e1',
+      }}
+    >
       {children}
     </h3>
   )
@@ -33,9 +57,10 @@ function RiskScoreWidget({ riskScore, riskLevel, isSimulated }: RiskScoreWidgetP
   const score = riskScore ?? 91
   const level: RiskLevel = riskLevel ?? 'Critical'
   const color = RISK_COLORS[level]
+  const glow = RISK_GLOWS[level]
 
   return (
-    <WidgetShell>
+    <WidgetShell extraClassName="glow-cyan">
       <div className="flex flex-row items-center justify-between">
         <WidgetTitle>Risk Score</WidgetTitle>
         {isSimulated && (
@@ -48,17 +73,32 @@ function RiskScoreWidget({ riskScore, riskLevel, isSimulated }: RiskScoreWidgetP
         )}
       </div>
       <div className="mt-4 flex flex-row items-baseline justify-center gap-2">
-        <span className="text-7xl font-bold leading-none text-foreground">
+        {/* Cyan → purple gradient on the headline score. */}
+        <span
+          className="text-7xl font-bold leading-none text-gradient-cyan-purple"
+        >
           {score}
         </span>
-        <span className="text-lg text-foreground-muted">/1000</span>
+        <span className="text-lg text-[#cbd5e1]">/1000</span>
       </div>
-      <div className="mt-6 h-[2px] w-full bg-foreground" />
+      <div
+        className="mt-6 h-[2px] w-full"
+        style={{ backgroundColor: 'rgba(255, 255, 255, 0.06)' }}
+      />
       <div className="mt-4 flex flex-row items-center justify-between">
-        <p className="text-xs text-foreground-muted">Risk Level</p>
+        <p
+          className="text-xs font-medium uppercase"
+          style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}
+        >
+          Risk Level
+        </p>
         <span
-          className="inline-flex items-center px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-foreground"
-          style={{ backgroundColor: color, color: '#000000' }}
+          className="inline-flex items-center px-2 py-1 text-[11px] font-bold uppercase tracking-wider"
+          style={{
+            backgroundColor: color,
+            color: '#000000',
+            boxShadow: glow,
+          }}
         >
           {level}
         </span>

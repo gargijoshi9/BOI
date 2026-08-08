@@ -42,6 +42,15 @@ const NODE_FILL: Record<VisualType, string> = {
   cash_out: '#8b5cf6',
 }
 
+// SVG filter id per node type — each one softens its node color into
+// an outer halo. Applied via filter="url(#glow-...)".
+const NODE_GLOW_FILTER: Record<VisualType, string> = {
+  victim: 'url(#glow-blue)',
+  mule: 'url(#glow-red)',
+  relay: 'url(#glow-orange)',
+  cash_out: 'url(#glow-purple)',
+}
+
 const CENTRAL_RING_COLOR = '#facc15' // amber - marks "this is the account you queried"
 
 const MOCK_NODES: { id: string; label: string; type: VisualType; layer: number }[] = [
@@ -63,8 +72,9 @@ const MOCK_LINKS: GraphLink[] = [
 ]
 
 const NODE_RADIUS = 18
-const EDGE_COLOR = '#94a3b8'
-const STROKE_COLOR = '#FFFFFF'
+const EDGE_COLOR = 'rgba(148, 163, 184, 0.3)' // slate-400 at 0.3
+const ARROW_COLOR = '#94a3b8'
+const LABEL_COLOR = '#94a3b8'
 
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
 const formatRupee = (n: number) => '₹' + inr.format(n)
@@ -133,6 +143,8 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
       svg.attr('viewBox', `0 0 ${width} ${height}`)
 
       const defs = svg.append('defs')
+
+      // Arrowhead — muted slate to match edges.
       defs
         .append('marker')
         .attr('id', 'arrow')
@@ -144,7 +156,36 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
         .attr('orient', 'auto')
         .append('path')
         .attr('d', 'M0,-5L10,0L0,5')
-        .attr('fill', STROKE_COLOR)
+        .attr('fill', ARROW_COLOR)
+
+      // Four color-matched glow filters — one per node type. Each
+      // applies a small gaussian blur to the source graphic and merges
+      // the blurred halo under the original, producing a soft outer
+      // glow that matches the node's fill color.
+      const glowDefs: Array<{ id: string; color: string }> = [
+        { id: 'glow-red', color: '#ef4444' },
+        { id: 'glow-blue', color: '#3b82f6' },
+        { id: 'glow-orange', color: '#f97316' },
+        { id: 'glow-purple', color: '#8b5cf6' },
+      ]
+      glowDefs.forEach(({ id, color }) => {
+        const f = defs
+          .append('filter')
+          .attr('id', id)
+          .attr('x', '-50%').attr('y', '-50%')
+          .attr('width', '200%').attr('height', '200%')
+        f.append('feGaussianBlur')
+          .attr('in', 'SourceGraphic')
+          .attr('stdDeviation', 3)
+          .attr('result', 'coloredBlur')
+        const merge = f.append('feMerge')
+        merge.append('feMergeNode').attr('in', 'coloredBlur')
+        merge.append('feMergeNode').attr('in', 'SourceGraphic')
+        // Mark the filter as touching its color so it stays referenced
+        // (no-op attribute; satisfies strict readers and keeps D3 from
+        // stripping the filter def).
+        void color
+      })
 
       const layersInUse = Array.from(
         new Set(nodes.map((n) => n.layer)),
@@ -197,7 +238,7 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
         n.fy = n.y
       })
 
-      // Edges (slate gray with white arrowheads)
+      // Edges (slate at 0.3 alpha, muted arrowhead)
       const linkGroup = svg.append('g').attr('class', 'links')
       linkGroup
         .selectAll('line')
@@ -220,7 +261,7 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
         .data(links)
         .enter()
         .append('text')
-        .attr('fill', '#A3A3A3')
+        .attr('fill', '#94a3b8')
         .style('font-size', '10px')
         .attr('text-anchor', 'middle')
         .attr('x', (d) => {
@@ -253,12 +294,12 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
           g.append('circle')
             .attr('r', NODE_RADIUS + 6)
             .attr('fill', 'none')
-            .attr('stroke', STROKE_COLOR)
+            .attr('stroke', '#94a3b8')
             .attr('stroke-width', 1)
           g.append('circle')
             .attr('r', NODE_RADIUS + 2)
             .attr('fill', 'none')
-            .attr('stroke', STROKE_COLOR)
+            .attr('stroke', '#94a3b8')
             .attr('stroke-width', 1)
         }
         // Amber outer ring for the central/queried account, so it's
@@ -271,11 +312,15 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
             .attr('stroke', CENTRAL_RING_COLOR)
             .attr('stroke-width', 2)
         }
+        // Type-matched glow filter — applied to every node so each
+        // color reads as its own halo.
         g.append('circle')
           .attr('r', NODE_RADIUS)
           .attr('fill', fill)
-          .attr('stroke', STROKE_COLOR)
+          .attr('filter', NODE_GLOW_FILTER[d.type])
+          .attr('stroke', '#94a3b8')
           .attr('stroke-width', d.type === 'mule' ? 2 : 1)
+          .attr('stroke-opacity', 0.4)
           .attr('stroke-dasharray', d.type === 'relay' ? '4 3' : null)
       })
 
@@ -284,8 +329,8 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
         .text((d) => d.label)
         .attr('text-anchor', 'middle')
         .attr('y', NODE_RADIUS + 16)
-        .attr('fill', STROKE_COLOR)
-        .style('font-size', '11px')
+        .attr('fill', LABEL_COLOR)
+        .style('font-size', '10px')
     }
 
     const observer = new ResizeObserver((entries) => {
@@ -299,53 +344,79 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
     return () => observer.disconnect()
   }, [networkConnections, centralAccountId, height])
 
+  // Per-legend-dot glow shadow — same hue as the node it represents.
+  const legendGlow: Record<VisualType, string> = {
+    victim: '0 0 8px rgba(59, 130, 246, 0.5)',
+    mule: '0 0 8px rgba(239, 68, 68, 0.5)',
+    relay: '0 0 8px rgba(249, 115, 22, 0.5)',
+    cash_out: '0 0 8px rgba(139, 92, 246, 0.5)',
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="flex w-full flex-col border border-border bg-background p-7"
-    >
-      <h3 className="text-xs font-medium uppercase tracking-widest text-foreground-muted">
+    <div ref={containerRef} className="glass flex w-full flex-col p-7">
+      <h3
+        className="text-xs font-medium uppercase"
+        style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}
+      >
         Fraud Ring Network
       </h3>
       <svg
         ref={svgRef}
         className="mt-4 w-full"
-        style={{ height: `${height}px` }}
+        style={{ height: `${height}px`, background: 'transparent' }}
         preserveAspectRatio="none"
       />
-      <div className="mt-4 flex flex-row items-center gap-6 text-xs text-foreground-muted">
+      <div
+        className="mt-4 flex flex-row items-center gap-6 text-xs"
+        style={{ color: '#94a3b8' }}
+      >
         <span className="flex flex-row items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full"
-            style={{ backgroundColor: NODE_FILL.victim }}
+            style={{
+              backgroundColor: NODE_FILL.victim,
+              boxShadow: legendGlow.victim,
+            }}
           />
           Victim
         </span>
         <span className="flex flex-row items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full"
-            style={{ backgroundColor: NODE_FILL.mule }}
+            style={{
+              backgroundColor: NODE_FILL.mule,
+              boxShadow: legendGlow.mule,
+            }}
           />
           Mule
         </span>
         <span className="flex flex-row items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full"
-            style={{ backgroundColor: NODE_FILL.relay }}
+            style={{
+              backgroundColor: NODE_FILL.relay,
+              boxShadow: legendGlow.relay,
+            }}
           />
           Relay
         </span>
         <span className="flex flex-row items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full"
-            style={{ backgroundColor: NODE_FILL.cash_out }}
+            style={{
+              backgroundColor: NODE_FILL.cash_out,
+              boxShadow: legendGlow.cash_out,
+            }}
           />
           Cash-Out
         </span>
         <span className="flex flex-row items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full border-2"
-            style={{ borderColor: CENTRAL_RING_COLOR }}
+            style={{
+              borderColor: CENTRAL_RING_COLOR,
+              boxShadow: `0 0 8px ${CENTRAL_RING_COLOR}66`,
+            }}
           />
           Queried Account
         </span>

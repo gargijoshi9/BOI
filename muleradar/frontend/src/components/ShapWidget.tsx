@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { ShapFeature } from '../api/client'
 
 interface ShapWidgetProps {
@@ -18,10 +19,37 @@ function ShapWidget({ shapExplanation }: ShapWidgetProps) {
 
   const maxAbs = Math.max(...features.map((f) => Math.abs(f.contribution)), 0.001)
 
+  // Width-on-mount: each bar starts at 0 and animates to its target
+  // width on first paint via a 50ms-deferred state flip. Triggered
+  // once per feature set so the bars don't re-animate on every
+  // re-render (e.g. when the parent re-renders for unrelated reasons).
+  const [animated, setAnimated] = useState(false)
+  const featuresKey = features
+    .map((f) => `${f.feature}:${f.contribution}`)
+    .join('|')
+  const prevKey = useRef<string | null>(null)
+
+  useEffect(() => {
+    // Reset on new data so the bars animate again when the explanation
+    // changes (e.g. user evaluates a new account).
+    if (prevKey.current !== null && prevKey.current !== featuresKey) {
+      setAnimated(false)
+      const t = setTimeout(() => setAnimated(true), 50)
+      prevKey.current = featuresKey
+      return () => clearTimeout(t)
+    }
+    prevKey.current = featuresKey
+    const t = setTimeout(() => setAnimated(true), 50)
+    return () => clearTimeout(t)
+  }, [featuresKey])
+
   return (
-    <div className="flex w-full flex-col border border-border bg-background p-7">
-      <h3 className="text-xs font-medium uppercase tracking-widest text-foreground-muted">
-        SHAP EXPLANATION
+    <div className="glass flex w-full flex-col p-7">
+      <h3
+        className="text-xs font-medium uppercase"
+        style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}
+      >
+        SHAP Explanation
       </h3>
       <div className="mt-4 flex flex-col gap-3">
         {features.map((f) => {
@@ -34,16 +62,35 @@ function ShapWidget({ shapExplanation }: ShapWidgetProps) {
               key={f.feature}
               className="flex flex-row items-center gap-4"
             >
-              <span className="w-44 truncate text-xs text-foreground">
+              <span
+                className="w-44 truncate text-xs"
+                style={{ color: '#94a3b8' }}
+              >
                 {f.feature}
               </span>
-              <div className="relative h-3 flex-1 border border-border bg-background">
+              <div
+                className="relative h-[6px] flex-1"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: 0,
+                }}
+              >
                 <div
-                  className="h-full bg-foreground"
-                  style={{ width: `${widthPct}%` }}
+                  className={
+                    'shap-bar h-full ' + (animated ? '' : 'shap-bar-initial')
+                  }
+                  style={{
+                    width: `${widthPct}%`,
+                    background:
+                      'linear-gradient(90deg, #22d3ee, #a855f7)',
+                    borderRadius: 0,
+                  }}
                 />
               </div>
-              <span className="w-20 text-right text-xs tabular-nums text-foreground-muted">
+              <span
+                className="w-20 text-right text-xs tabular-nums"
+                style={{ color: '#22d3ee', fontWeight: 600 }}
+              >
                 {f.contribution.toFixed(3)}
               </span>
             </div>

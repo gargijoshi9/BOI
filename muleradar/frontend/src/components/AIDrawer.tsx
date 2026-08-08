@@ -94,38 +94,62 @@ function AIDrawer() {
   return (
     <aside
       aria-hidden={!isOpen}
-      className="relative flex h-full flex-col border-l border-border bg-background-subtle drawer-slide"
+      className="relative flex h-full flex-col ai-drawer-edge-glow drawer-slide"
       style={{
         width: `${visualWidth}px`,
         minWidth: `${visualWidth}px`,
         opacity: isOpen ? 1 : 0,
         overflow: 'hidden',
         pointerEvents: isOpen ? 'auto' : 'none',
+        background: 'rgba(2, 2, 12, 0.95)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderLeft: '1px solid rgba(34, 211, 238, 0.15)',
       }}
     >
-      {/* Drag handle — 6px strip on the left edge */}
+      {/* Drag handle — 6px strip on the left edge. Hover state is
+          handled via .drawer-drag-handle in index.css (cyan tint +
+          subtle glow on hover, cursor stays col-resize). */}
       <div
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize AI Assistant"
         onPointerDown={startDrag}
-        className="absolute left-0 top-0 z-10 flex h-full w-[6px] cursor-col-resize flex-col items-center justify-center border-l border-foreground bg-transparent"
+        className="drawer-drag-handle absolute left-0 top-0 z-10 flex h-full w-[6px] cursor-col-resize flex-col items-center justify-center"
         style={{ touchAction: 'none' }}
       >
         <span className="pointer-events-none flex flex-col gap-1">
-          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
-          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
-          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
         </span>
       </div>
 
-      <div className="flex items-center justify-between border-b border-border px-6 py-5">
-        <h2 className="text-lg font-bold text-foreground">AI Assistant</h2>
+      <div
+        className="flex items-center justify-between px-6 py-5"
+        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
+      >
+        <h2
+          className="text-lg"
+          style={{ color: '#22d3ee', fontWeight: 700 }}
+        >
+          AI Assistant
+        </h2>
         <button
           type="button"
           onClick={closeDrawer}
           aria-label="Close AI Assistant"
-          className="text-xl font-medium text-foreground hover:text-foreground-muted"
+          className="text-xl font-medium"
+          style={{
+            color: '#cbd5e1',
+            transition: 'color 150ms ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#f8fafc'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#cbd5e1'
+          }}
         >
           ✕
         </button>
@@ -133,18 +157,49 @@ function AIDrawer() {
 
       <form
         onSubmit={handleSubmit}
-        className="flex w-full flex-row items-stretch border-b border-border"
+        className="flex w-full flex-row items-stretch"
+        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
       >
         <input
           type="text"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           placeholder="Enter Account ID..."
-          className="flex-1 border border-r-0 border-foreground bg-background px-4 py-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none"
+          className="flex-1 px-4 py-3 text-sm focus:outline-none"
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            color: '#f8fafc',
+            transition: 'border-color 200ms ease, box-shadow 200ms ease',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)'
+            e.currentTarget.style.boxShadow =
+              '0 0 0 3px rgba(34, 211, 238, 0.08)'
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
         />
         <button
           type="submit"
-          className="border border-l border-foreground bg-background px-6 py-3 text-sm font-medium uppercase tracking-wider text-foreground hover:bg-white hover:text-background"
+          className="px-6 py-3 text-sm font-medium uppercase tracking-wider"
+          style={{
+            background: 'rgba(34, 211, 238, 0.1)',
+            border: '1px solid rgba(34, 211, 238, 0.4)',
+            color: '#22d3ee',
+            transition: 'all 200ms ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.2)'
+            e.currentTarget.style.boxShadow =
+              '0 0 20px rgba(34, 211, 238, 0.2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.1)'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
         >
           Summarize
         </button>
@@ -152,7 +207,10 @@ function AIDrawer() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {loading && (
-          <p className="flex items-center gap-1 text-sm text-foreground-muted">
+          <p
+            className="flex items-center gap-1 text-sm"
+            style={{ color: '#22d3ee' }}
+          >
             Generating summary
             <span className="ellipsis-dot">.</span>
             <span className="ellipsis-dot">.</span>
@@ -160,15 +218,20 @@ function AIDrawer() {
           </p>
         )}
         {error && !loading && (
-          <p className="text-sm text-[#ef4444]">{error}</p>
+          <p className="text-sm" style={{ color: '#ef4444' }}>
+            {error}
+          </p>
         )}
         {!loading && !error && summary && (
-          <p className="whitespace-pre-line break-words text-sm text-foreground">
+          <p
+            className="whitespace-pre-line break-words text-sm"
+            style={{ color: '#cbd5e1', lineHeight: 1.7 }}
+          >
             {summary}
           </p>
         )}
         {!loading && !error && !summary && (
-          <p className="text-sm text-foreground-muted">
+          <p className="text-sm" style={{ color: '#cbd5e1' }}>
             Enter an account ID to generate an AI summary.
           </p>
         )}
