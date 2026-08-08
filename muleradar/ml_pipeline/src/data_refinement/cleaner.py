@@ -9,6 +9,62 @@ class BOIDataRefiner:
     """
     Data Refinement Engine for the BOI mule account dataset.
 
+    DAY-1 FIX (data-dictionary reconciliation): the official BOI column
+    description sheet ("Description.xlsx" / Data_Dicitionary sheet) was
+    matched against every one of the 18 bank-finalized feature codes.
+    Several of the original semantic assumptions in this class were
+    wrong. Concretely, per the real dictionary:
+
+      - F115 ("R_CI_NON_CASH_CHQ_TXN_L14_31D") is a RATIO, not an
+        account-type/category column. It was previously used as
+        `account_type_col` to group-by for ratio imputation, which
+        means the group-wise median imputation was grouping by a
+        near-continuous value instead of a real category - functionally
+        close to no grouping at all, just with extra noise.
+        The REAL account-type proxy is F3886 ("PRODUCT_NAME" - "Product
+        name of the corresponding account"). It isn't one of the bank's
+        18 finalized features, so it's loaded here ONLY as an auxiliary
+        grouping key (see `auxiliary_grouping_columns`) and dropped
+        before the cleaned dataframe is returned - it never reaches the
+        model as an input feature, exactly like `leaky_columns`.
+
+      - F670 ("MIN_UPI_XFER_TXNS_L7D") is a transaction COUNT ("Min UPI
+        Total Txns"), not a ratio. It was incorrectly sitting in
+        `ratio_features` (group-median imputed). Moved to
+        `count_features` (zero-filled) - this also matches what
+        hackathon_report.md's Data Refinement section already claimed
+        ("zero-fill for count features like F670 and F1692"), which the
+        code had never actually implemented.
+
+      - F1692 ("CASH_TXNS_DB_L14D") is likewise a real count ("Cash
+        Debit Txns") and is now explicitly zero-filled instead of
+        falling through to the generic column-median branch.
+
+      - F2582 ("DA_UPI_TXN_CR_L7_14D") and F2678
+        ("DA_ELEC_XFER_AMT_L14_31D") are AMOUNT DEVIATIONS, not counts
+        ("Deviation of avgs: of ... Amount"). They were incorrectly
+        sitting in `count_features` (zero-filled, which silently
+        invents "zero deviation" for missing rows instead of using a
+        sensible statistical fallback). Moved to the generic
+        median-imputation branch.
+
+      - F2956 ("D_TA_CI_NON_CASH_CHQ_TXN_CR_L14D") is a deviation
+        metric, not a ratio, and was incorrectly sitting in
+        `ratio_features`. Moved to the generic median branch. (It was
+        also being misused elsewhere as a "counterparty count" proxy in
+        FeatureFactory - see features.py's own fix notes; the dataset
+        has no real counterparty/beneficiary-count column anywhere in
+        its ~3924 columns, confirmed by a full-text search of the data
+        dictionary.)
+
+      - F321 ("RA_NON_CASH_CHQ_AMT_L7_14D") IS a genuine ratio
+        ("Ratio of avgs...") but was never in `ratio_features` at all -
+        it was falling through to the generic median branch. Added.
+
+    Everything else (F527, F531 as ratios; F2082/F2122 as counts; F3891
+    one-hot; leaky-column handling; shadow "was_missing" columns) was
+    already correct per the dictionary and is unchanged.
+
     Handles:
       - Shadow "was_missing" indicator columns (missingness as a signal)
       - Context-aware imputation (zero-fill for count features, group-wise
@@ -18,22 +74,9 @@ class BOIDataRefiner:
       - Leakage-safe numeric imputation (medians are fit ONCE on training
         data and reused on unseen/live data, never recomputed on the fly)
       - Removal of known leaky columns identified during EDA
-
-    FIX (Jul 15 follow-up): the group-wise ratio imputation used to call
-    `df.groupby(...).transform('median')` on whatever dataframe was passed
-    in. That meant:
-      1. Test-set medians were computed from the test set itself (leakage),
-         and
-      2. A single-row live inference call (see MuleRiskAnalyzer) produced a
-         NaN/degenerate median since you can't take a meaningful median of
-         one row.
-    Now group medians (and the generic column medians used in the catch-all
-    branch) are learned ONCE on the training data and stored on the fitted
-    object, then just looked up / mapped onto new data - the same pattern
-    already used for the LabelEncoders.
     """
 
-    def __init__(self):
+    def __init__(self, use_amount_totals: bool = True):
         # The exact 18 features requested by Bank of India
         self.important_features = [
             'F115', 'F321', 'F527', 'F531', 'F670', 'F1692', 'F2082', 'F2122',
@@ -42,31 +85,70 @@ class BOIDataRefiner:
         ]
         self.target_col = 'F3924'
 
+        # DAY-1 FIX: optionally load the two clean total-amount columns
+        # (F3800 = TOT_TXNAMT_CR_L31D, F3801 = TOT_TXNAMT_DB_L31D). They
+        # are NOT among the bank's 18 finalized features but are needed
+        # by FeatureFactory to compute a correct, unit-consistent
+        # Pass-Through Ratio / Inward Concentration (see features.py's
+        # docstring). Kept as real model inputs (unlike
+        # auxiliary_grouping_columns below, these are NOT dropped before
+        # returning). Must be kept in sync with the `use_amount_totals`
+        # flag passed to FeatureFactory in train.py / analyzer.py -
+        # mismatched flags mean the amount-based ratios silently fall
+        # back to the weaker proxy.
+        self.use_amount_totals = use_amount_totals
+        self.amount_total_columns = ['F3800', 'F3801'] if use_amount_totals else []
+        self.important_features = self.important_features + self.amount_total_columns
+
         # Columns confirmed to leak the target during EDA (near-perfect
         # correlation with F3924, traced back to post-event fields that
         # wouldn't be available at prediction time in production).
         # These must NEVER be used as model inputs.
+        #
+        # NOTE: F2230 ("MNTH" - Month of the data) is also currently
+        # treated as a drop candidate for MODEL FEATURES, but per the
+        # data dictionary it's a genuine time/snapshot column - it
+        # should be extracted and used as the out-of-time split key in
+        # train.py BEFORE this class ever sees/drops it, not silently
+        # discarded. See train.py's _CANDIDATE_DATE_COLUMNS fix.
         self.leaky_columns = ['F3912', 'F2230']
 
         # Features that represent counts of events (e.g. transaction counts).
         # Missing -> genuinely "0 activity", not "unknown", so zero-fill.
         #
-        # TODO(data-dictionary): FeatureFactory.engineer_features() treats
-        # F2082/F2122 as raw transaction VOLUMES (inflow / cash-out amount)
-        # and F2582/F2678 as transaction COUNTS, while this class currently
-        # treats ALL FOUR as counts for imputation purposes. Confirm the real
-        # semantics against the BOI data dictionary and align both files -
-        # a volume column should probably NOT be zero-filled the same way a
-        # count column is (a volume of 0 vs "unknown" are very different
-        # assumptions for a ratio like pass_through_ratio).
-        self.count_features = ['F2082', 'F2122', 'F2582', 'F2678']
+        # DAY-1 FIX: corrected against the real data dictionary.
+        #   F2082 AVG_NET_BNKING_TXNS_DB_L14D - Average Net Banking Debit
+        #         Txns - last 14D (genuine count)
+        #   F2122 AVG_CASH_TXNS_L31D - Average Cash Transaction Count -
+        #         last 31D (genuine count)
+        #   F670  MIN_UPI_XFER_TXNS_L7D - Min UPI Total Txns - last 7D
+        #         (genuine count; moved OUT of ratio_features)
+        #   F1692 CASH_TXNS_DB_L14D - Cash Debit Txns - last 14D
+        #         (genuine count; previously fell through to generic median)
+        # F2582 and F2678 were REMOVED from this list - see class
+        # docstring, they are amount deviations, not counts.
+        self.count_features = ['F2082', 'F2122', 'F670', 'F1692']
 
         # Features that represent ratios (e.g. inward/outward ratios).
         # Missing -> impute with the median WITHIN the account's own type
         # group instead of a single global median, since ratio baselines
         # differ a lot between account types (savings vs current vs merchant).
-        self.ratio_features = ['F527', 'F531', 'F670', 'F2956']
-        self.account_type_col = 'F115'  # proxy account-type/category column
+        #
+        # DAY-1 FIX: F670 and F2956 REMOVED (not actually ratios - see
+        # docstring). F321 ADDED (genuinely a ratio, was previously
+        # falling through to the generic median branch unimputed by
+        # group).
+        self.ratio_features = ['F321', 'F527', 'F531']
+
+        # DAY-1 FIX: account_type_col now points at the REAL product/
+        # account-type column (F3886 = PRODUCT_NAME), not F115 (which is
+        # itself a ratio feature, not a category). F3886 is not one of
+        # the bank's 18 finalized features, so it is loaded ONLY as an
+        # auxiliary grouping key via `auxiliary_grouping_columns` below
+        # and is always dropped before the cleaned dataframe is returned
+        # - it never becomes a model input.
+        self.account_type_col = 'F3886'
+        self.auxiliary_grouping_columns = [self.account_type_col]
 
         self.label_encoders = {}
 
@@ -106,7 +188,12 @@ class BOIDataRefiner:
 
     def clean(self, file_path: str, is_training: bool = True) -> pd.DataFrame:
         print(f"Loading data from {file_path}...")
-        cols_to_use = self.important_features + [self.target_col]
+        # DAY-1 FIX: also load the auxiliary grouping column(s) (e.g.
+        # F3886) alongside the bank's 18 + target, so group-wise ratio
+        # imputation has a real category to group by. These are dropped
+        # again at the very end of _clean_dataframe(), same treatment as
+        # leaky_columns - they are never a model input.
+        cols_to_use = self.important_features + [self.target_col] + self.auxiliary_grouping_columns
 
         try:
             df = pd.read_csv(file_path, usecols=lambda c: c in cols_to_use)
@@ -125,17 +212,11 @@ class BOIDataRefiner:
         for single-row / live inference, instead of re-implementing (or
         skipping) the cleaning steps inline.
 
-        FIX: filters down to the trained feature columns first, same as
-        clean() does via usecols=... when loading from a file. Without
-        this, a raw row pulled straight from the source CSV (which has
-        ALL ~3924 raw F-columns, not just the 18 trained ones) would get
-        run through imputation/encoding for every single column - crashing
-        on any column that looks like text but was never seen during
-        training (no fitted LabelEncoder for it), and along the way
-        triggering severe DataFrame fragmentation from inserting hundreds
-        of "_was_missing" columns one at a time.
+        Filters down to the trained feature columns first (now including
+        the auxiliary grouping column, if present in the source row),
+        same as clean() does via usecols=... when loading from a file.
         """
-        cols_to_use = self.important_features + [self.target_col]
+        cols_to_use = self.important_features + [self.target_col] + self.auxiliary_grouping_columns
         available_cols = [c for c in cols_to_use if c in df.columns]
         filtered = df[available_cols].copy()
         return self._clean_dataframe(filtered, is_training=is_training)
@@ -149,34 +230,24 @@ class BOIDataRefiner:
 
         # --- Shadow missingness indicators (preserve absence-of-activity signal) ---
         #
-        # FIX: this used to decide WHICH columns get a "_was_missing"
-        # shadow column by checking `df[col].isna().any()` on whatever
-        # dataframe was passed in. That's fine for the full training set,
-        # but at single-row live inference, a lone row essentially never
-        # has NaNs in the same columns the training set did - so the
-        # resulting column list didn't match what the model was trained
-        # on, and XGBoost rejected it with a "feature_names mismatch"
-        # error (this is the same class of bug as the group-median
-        # leakage fixed earlier: deciding structure from the data slice
-        # you're given, instead of learning it once on training data).
+        # The set of columns that get a shadow indicator is learned ONCE
+        # during training and stored on self.was_missing_columns, then
+        # applied identically (same columns, in the same order) at both
+        # train and inference time.
         #
-        # Now the set of columns that get a shadow indicator is learned
-        # ONCE during training and stored on self.was_missing_columns,
-        # then applied identically (same columns, in the same order) at
-        # both train and inference time - even if a given inference row
-        # has no missing values at all, it still gets the same shadow
-        # columns, just filled with 0.
+        # NOTE: the auxiliary grouping column (F3886) is intentionally
+        # excluded from shadow-column consideration below via the
+        # `col in self.auxiliary_grouping_columns` check - it's dropped
+        # entirely before this dataframe is returned, so a
+        # "F3886_was_missing" indicator would be dead weight.
         print("Creating shadow 'was_missing' indicator columns...")
         if is_training:
             self.was_missing_columns = [
                 col for col in df.columns
-                if col != self.target_col and df[col].isna().any()
+                if col != self.target_col
+                and col not in self.auxiliary_grouping_columns
+                and df[col].isna().any()
             ]
-        # Build all shadow columns in one shot via pd.concat instead of
-        # inserting them one at a time (df[new_col] = ... in a loop),
-        # which is what triggered pandas' "DataFrame is highly
-        # fragmented" PerformanceWarning during training - purely a
-        # performance fix, doesn't change the resulting values.
         shadow_cols = {}
         for col in self.was_missing_columns:
             if col in df.columns:
@@ -190,15 +261,13 @@ class BOIDataRefiner:
         print("Handling missing values and encoding text...")
         onehot_frames = []
         for col in list(df.columns):
-            if col == self.target_col or col.endswith('_was_missing'):
+            if (
+                col == self.target_col
+                or col.endswith('_was_missing')
+                or col in self.auxiliary_grouping_columns
+            ):
                 continue
 
-            # NOTE: pandas 3.0+ defaults text columns to a native 'str'
-            # dtype instead of 'object', so a plain `dtype == 'object'`
-            # check silently misses categorical columns on newer pandas
-            # (they'd fall through to the numeric median branch and
-            # crash). is_object_dtype/is_string_dtype covers both old and
-            # new pandas behavior.
             is_text_col = (
                 pd.api.types.is_object_dtype(df[col])
                 or pd.api.types.is_string_dtype(df[col])
@@ -207,8 +276,6 @@ class BOIDataRefiner:
                 df[col] = df[col].fillna('Missing').astype(str)
 
                 if is_training:
-                    # Fixed, sorted category list learned once - sorting
-                    # keeps column order deterministic across runs.
                     self.onehot_categories[col] = sorted(df[col].unique().tolist())
 
                 categories = self.onehot_categories.get(col, [])
@@ -216,10 +283,6 @@ class BOIDataRefiner:
                 for cat in categories:
                     safe_cat = ''.join(ch if ch.isalnum() else '_' for ch in str(cat))
                     dummies[f"{col}_is_{safe_cat}"] = (df[col] == cat).astype(int)
-                # A category never seen during training (or genuinely
-                # absent from a single inference row) simply matches none
-                # of the learned dummy columns - safe, doesn't crash,
-                # doesn't change the schema.
                 onehot_frames.append(pd.DataFrame(dummies, index=df.index))
                 df = df.drop(columns=[col])
 
@@ -244,13 +307,10 @@ class BOIDataRefiner:
 
             elif col in self.count_features:
                 # No activity recorded -> zero, not "average" activity.
-                # This is a constant fill, not a learned statistic, so it's
-                # safe to apply identically at train and inference time.
                 df[col] = df[col].fillna(0)
 
             elif col in self.ratio_features and self.account_type_col in df.columns:
                 if is_training:
-                    # Learn the group medians ONCE, from training data only.
                     group_medians = df.groupby(self.account_type_col)[col].median()
                     self.ratio_group_medians[col] = group_medians.to_dict()
                     self.ratio_global_medians[col] = float(df[col].median())
@@ -258,10 +318,6 @@ class BOIDataRefiner:
                 group_map = self.ratio_group_medians.get(col, {})
                 global_fallback = self.ratio_global_medians.get(col, 0.0)
 
-                # Map each row's account type to the *training-set* median
-                # for that group. Account types never seen during training
-                # (or a live single-row lookup, where a group median can't
-                # be computed from one row) fall back to the global median.
                 mapped_group_median = df[self.account_type_col].map(group_map)
                 df[col] = df[col].fillna(mapped_group_median)
                 df[col] = df[col].fillna(global_fallback)
@@ -272,10 +328,17 @@ class BOIDataRefiner:
                 fallback = self.fitted_medians.get(col, 0.0)
                 df[col] = df[col].fillna(fallback)
 
-        # Add all one-hot dummy columns in a single concat (avoids the
-        # same fragmentation issue fixed earlier for the shadow columns).
+        # Add all one-hot dummy columns in a single concat (avoids
+        # DataFrame fragmentation).
         if onehot_frames:
             df = pd.concat([df] + onehot_frames, axis=1)
+
+        # --- Drop the auxiliary grouping column(s) - they were loaded
+        # ONLY to enable group-wise ratio imputation above and must
+        # never reach the model as an input feature. ---
+        aux_present = [c for c in self.auxiliary_grouping_columns if c in df.columns]
+        if aux_present:
+            df = df.drop(columns=aux_present)
 
         if is_training:
             self._is_fitted = True

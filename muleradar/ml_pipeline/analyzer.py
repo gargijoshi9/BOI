@@ -64,17 +64,32 @@ REFINER_PATH = BASE_DIR / "saved_models" / "data_refiner.pkl"
 FACTORY_PATH = BASE_DIR / "saved_models" / "feature_factory.pkl"
 DATASET_PATH = BASE_DIR / "data" / "boi_dataset.csv"
 
-# TODO(data-dictionary): these are the same placeholder volume columns
-# used in FeatureFactory (inflow / cash-out). Once the real BOI data
-# dictionary confirms actual monetary amount columns, swap them in here
-# so damage_metrics reflects real transaction amounts rather than the
-# account's raw feature values.
+# TODO(data-dictionary): these are still placeholder volume columns
+# for the damage-estimate DISPLAY numbers only (not model inputs - the
+# model itself now uses the real F3800/F3801 total amount columns, see
+# FeatureFactory). Swap these to F3800 (TOT_TXNAMT_CR_L31D) / F3801
+# (TOT_TXNAMT_DB_L31D) as well once damage-estimate accuracy is
+# revisited (tracked as a Day-4 item) - kept as F2082/F2122 here for
+# now since that only changes displayed rupee figures, not anything the
+# model is trained/scored on.
 _INFLOW_COL = 'F2082'
 _CASH_OUT_COL = 'F2122'
-# Rough counterparty-count feature, used only to loosely bound the
-# synthesized network neighborhood size (see graph_initializer.py's
-# module docstring for what's real vs. synthesized here).
-_COUNTERPARTY_COL = 'F2678'
+
+# DAY-1 FIX: F2678 was previously used here as a "rough counterparty-
+# count feature" to loosely bound the synthesized network neighborhood
+# size. Per the official BOI data dictionary, F2678 is actually
+# DA_ELEC_XFER_AMT_L14_31D - an electronic-transfer AMOUNT DEVIATION,
+# not a counterparty count. A full-text search of the entire
+# ~3924-column data dictionary for anything resembling a real
+# counterparty/beneficiary count returned zero matches - no such column
+# exists in this dataset at all. Rather than bound the synthesized graph
+# neighborhood off a value that has nothing to do with counterparties,
+# _build_network_connections() below now always passes
+# counterparty_hint=0, which means
+# build_synthetic_account_neighborhood() falls back to its own
+# risk-based default range (2-4 neighbors normally, up to 6 for
+# risk_score > 600) instead of a misleading external bound.
+# _COUNTERPARTY_COL constant removed - see counterparty_hint below.
 
 
 class MuleRiskAnalyzer:
@@ -163,12 +178,10 @@ class MuleRiskAnalyzer:
             inflow = float(raw_row[_INFLOW_COL].iloc[0]) if _INFLOW_COL in raw_row.columns and pd.notna(raw_row[_INFLOW_COL].iloc[0]) else 0.0
             cash_out = float(raw_row[_CASH_OUT_COL].iloc[0]) if _CASH_OUT_COL in raw_row.columns and pd.notna(raw_row[_CASH_OUT_COL].iloc[0]) else 0.0
 
+            # DAY-1 FIX: see the module-level note above _COUNTERPARTY_COL
+            # removal - no real counterparty-count column exists in this
+            # dataset, so this is always 0.
             counterparty_hint = 0
-            if _COUNTERPARTY_COL in raw_row.columns and pd.notna(raw_row[_COUNTERPARTY_COL].iloc[0]):
-                try:
-                    counterparty_hint = int(raw_row[_COUNTERPARTY_COL].iloc[0])
-                except (ValueError, TypeError):
-                    counterparty_hint = 0
 
             graph = self._graph_initializer.build_synthetic_account_neighborhood(
                 account_id=account_id,
@@ -196,15 +209,16 @@ class MuleRiskAnalyzer:
             # the old hasattr() fallback that silently skipped cleaning
             # entirely when the method didn't exist.
             # FIX: the raw dataset has ~3900 columns (F1...F3924), but the
-            # refiner/model were only ever trained on the 18 columns in
-            # important_features (train.py loads the CSV with
-            # usecols=important_features+[target]). Passing the FULL raw
-            # row here means clean_dataframe() hits columns like random
-            # F-codes that were never seen during training and have no
-            # fitted encoder - which crashed with "No fitted encoder
-            # found for 'F3886'" and silently fell back to the simulator.
-            # Subsetting to the trained columns (same ones the model
-            # actually uses) fixes this and is also more efficient.
+            # refiner/model were only ever trained on the important_features
+            # set (the bank's 18, plus F3800/F3801 when
+            # BOIDataRefiner.use_amount_totals is enabled - see cleaner.py).
+            # Passing the FULL raw row here means clean_dataframe() hits
+            # columns like random F-codes that were never seen during
+            # training and have no fitted encoder - which crashed with
+            # "No fitted encoder found for 'F3886'" and silently fell back
+            # to the simulator. Subsetting to the trained columns (same
+            # ones the model actually uses) fixes this and is also more
+            # efficient.
             trained_cols = [c for c in self.refiner.important_features if c in raw_row.columns]
             feature_row = raw_row[trained_cols].copy()
             cleaned = self.refiner.clean_dataframe(feature_row, is_training=False)
@@ -260,6 +274,12 @@ class MuleRiskAnalyzer:
         probability) instead of an arbitrary constant untethered from the
         account. It's explicitly flagged as an estimate in the response
         so the frontend/analyst doesn't treat it as a verified figure.
+
+        NOTE: _INFLOW_COL/_CASH_OUT_COL here are still F2082/F2122 (see
+        module-level TODO) - swapping these to the real F3800/F3801
+        total-amount columns for the DISPLAYED rupee figures is a Day-4
+        follow-up, separate from the model-input fix already applied in
+        FeatureFactory.
         """
         inflow = float(raw_row[_INFLOW_COL].iloc[0]) if _INFLOW_COL in raw_row.columns and pd.notna(raw_row[_INFLOW_COL].iloc[0]) else 0.0
         cash_out = float(raw_row[_CASH_OUT_COL].iloc[0]) if _CASH_OUT_COL in raw_row.columns and pd.notna(raw_row[_CASH_OUT_COL].iloc[0]) else 0.0
@@ -308,7 +328,7 @@ class MuleRiskAnalyzer:
     def _run_simulated_inference(self, account_id: str) -> dict:
         pass_through_ratio = self._calculate_pass_through(account_id)
         base_risk = 300 + (pass_through_ratio * 600)
-        
+
         # Deterministic noise based on character codes of account_id
         seed_val = sum(ord(char) * (idx + 1) for idx, char in enumerate(account_id))
         noise = (seed_val % 101) - 50  # integer between -50 and 50
