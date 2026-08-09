@@ -29,3 +29,10 @@ ml_pipeline/saved_models/*
 .vscode/
 .idea/
 .DS_Store
+
+# Ignore datasets and large binaries
+ml_pipeline/data/*.csv
+ml_pipeline/saved_models/*.joblib
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
