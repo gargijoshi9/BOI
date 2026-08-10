@@ -31,8 +31,10 @@ export function useAccountEvaluation() {
       ])
       setData(evalResult)
       if (summaryResult !== null) setSummary(summaryResult)
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to evaluate account'
+    } catch (e: any) {
+      const message =
+        e.response?.data?.detail ||
+        (e instanceof Error ? e.message : 'Failed to evaluate account')
       setError(message)
     } finally {
       setLoading(false)

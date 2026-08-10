@@ -67,8 +67,8 @@ function TopBar() {
         />
         {isHealthy ? (
           <>
-            <span>● LIVE</span>
-            <span style={{ color: '#cbd5e1' }}>— {health?.mode}</span>
+            <span>LIVE</span>
+            <span style={{ color: '#0da57aff' }}>— {health?.mode}</span>
           </>
         ) : (
           <span style={{ color: '#cbd5e1' }}>Connecting...</span>

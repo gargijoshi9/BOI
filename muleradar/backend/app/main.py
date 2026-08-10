@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- PATH RESOLUTION ---
 # This finds the root 'muleradar' folder so we can securely import 'ml_pipeline'
 # __file__ represents main.py -> app/ -> backend/ -> muleradar/
+# Reload trigger: sync with updated BOI feature dictionary descriptions
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 
@@ -125,21 +126,25 @@ async def evaluate_account(account_id: str):
     """
     Evaluates a single account ID against the detection pipeline.
     Returns structured risk metrics, network routing graphs, and explainable AI insights.
-
-    Runs the actual (blocking) inference call in a threadpool so this
-    doesn't stall the event loop for other concurrent requests -
-    important once multiple judges/demo devices hit the API at once.
     """
     intelligence_report = await run_in_threadpool(
         analyzer_engine.evaluate_account, account_id
     )
 
+    if intelligence_report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Invalid Account ID: '{account_id}'. Account not found in dataset. "
+                "Please try valid account IDs (e.g. 1, 2, 14, 18, 27, 71, or 95)."
+            ),
+        )
+
     logger.info(
-        "evaluate_account | account_id=%s risk_score=%s risk_level=%s is_simulated=%s",
+        "evaluate_account | account_id=%s risk_score=%s risk_level=%s",
         intelligence_report.get("account_id"),
         intelligence_report.get("risk_score"),
         intelligence_report.get("risk_level"),
-        intelligence_report.get("is_simulated"),
     )
     return intelligence_report
 
@@ -151,25 +156,26 @@ async def evaluate_account(account_id: str):
 async def evaluate_batch(request: BatchEvaluationRequest):
     """
     Evaluates a list of account IDs against the detection pipeline.
-    Returns a list of structured risk intelligence reports.
-
-    Each evaluation is offloaded to the threadpool individually rather
-    than looping synchronously in the route handler, so a large batch
-    doesn't monopolize the event loop for the whole request duration.
     """
     results = []
     for account_id in request.account_ids:
         intelligence_report = await run_in_threadpool(
             analyzer_engine.evaluate_account, account_id
         )
-        logger.info(
-            "evaluate_batch | account_id=%s risk_score=%s risk_level=%s is_simulated=%s",
-            intelligence_report.get("account_id"),
-            intelligence_report.get("risk_score"),
-            intelligence_report.get("risk_level"),
-            intelligence_report.get("is_simulated"),
+        if intelligence_report is not None:
+            logger.info(
+                "evaluate_batch | account_id=%s risk_score=%s risk_level=%s",
+                intelligence_report.get("account_id"),
+                intelligence_report.get("risk_score"),
+                intelligence_report.get("risk_level"),
+            )
+            results.append(intelligence_report)
+
+    if not results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="None of the requested Account IDs were found in the dataset.",
         )
-        results.append(intelligence_report)
     return results
 
 @app.get(
@@ -180,11 +186,6 @@ async def evaluate_batch(request: BatchEvaluationRequest):
 async def get_accounts(limit: int = 25):
     """
     Returns a list of accounts from the dataset, evaluated against the detection pipeline.
-
-    Offloaded to the threadpool as a single call, since get_accounts()
-    internally loops over evaluate_account() per row anyway - this at
-    least keeps the event loop free for OTHER requests while this one
-    (potentially slow, given per-row SHAP computation) runs.
     """
     return await run_in_threadpool(analyzer_engine.get_accounts, limit)
 
@@ -199,6 +200,11 @@ async def summarize_account(account_id: str):
     for the copilot panel.
     """
     report = await run_in_threadpool(analyzer_engine.evaluate_account, account_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Account ID '{account_id}' not found in dataset.",
+        )
     summary = await copilot_service.generate_summary(report)
     logger.info("summarize_account | account_id=%s", account_id)
     return CopilotResponse(account_id=account_id, summary=summary)

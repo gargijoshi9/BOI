@@ -19,11 +19,13 @@ env.bak/
 venv.bak/
 *.egg-info/
 
-# ML / Saved Models / Data
+# ML / Saved Models / Data / Logs
 ml_pipeline/data/*
 !ml_pipeline/data/.gitkeep
 ml_pipeline/saved_models/*
 !ml_pipeline/saved_models/.gitkeep
+catboost_info/
+**/catboost_info/
 
 # IDEs
 .vscode/

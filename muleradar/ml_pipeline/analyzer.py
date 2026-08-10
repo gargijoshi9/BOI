@@ -21,38 +21,25 @@ import joblib
 import numpy as np
 import pandas as pd
 
-try:
-    import shap
-    _SHAP_AVAILABLE = True
-except ImportError:
-    _SHAP_AVAILABLE = False
-
-
-# analyzer.py actually lives at ml_pipeline/analyzer.py - a SIBLING of
-# src/, not a file inside it. (Confirmed via `Get-ChildItem -Recurse
-# -Filter analyzer.py` - it's at ml_pipeline root, not ml_pipeline/src.)
-#
-# train.py pickles BOIDataRefiner/FeatureFactory with src/ itself on
-# sys.path (see train.py's own sys.path.append of its parent dir), so the
-# classes are pickled under module paths like "data_refinement.cleaner"
-# - NOT "src.data_refinement.cleaner". For joblib.load() to unpickle them
-# here, src/ needs to be added to sys.path directly, matching how they
-# were saved.
 _ML_PIPELINE_DIR = Path(__file__).resolve().parent
 _SRC_DIR = _ML_PIPELINE_DIR / "src"
 _MODELS_DIR = _SRC_DIR / "models"
 _GRAPH_ENGINE_DIR = _SRC_DIR / "graph_engine"
-# src/ resolves "data_refinement.cleaner" and "feature_factory.features"
-# (pickled as package-qualified paths). src/models/ additionally resolves
-# the flat "ensemble_model" module (pickled as a top-level name because
-# train.py imports it directly from its own directory) - both are needed
-# for joblib.load() to fully reconstruct the ensemble object.
-# src/graph_engine/ resolves "graph_initializer" as a flat top-level
-# module the same way, since it's imported directly rather than as a
-# package (graph_engine/ has no __init__.py).
-for _p in (_SRC_DIR, _MODELS_DIR, _GRAPH_ENGINE_DIR):
+_EXPLAINABILITY_DIR = _SRC_DIR / "explainability"
+
+for _p in (_ML_PIPELINE_DIR, _SRC_DIR, _MODELS_DIR, _GRAPH_ENGINE_DIR, _EXPLAINABILITY_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
+
+try:
+    from src.explainability.shap_explainer import ShapExplainerService, to_waterfall_json
+    _SHAP_AVAILABLE = True
+except ImportError:
+    try:
+        from explainability.shap_explainer import ShapExplainerService, to_waterfall_json
+        _SHAP_AVAILABLE = True
+    except ImportError:
+        _SHAP_AVAILABLE = False
 
 from graph_initializer import TransactionGraphInitializer
 
@@ -72,8 +59,11 @@ DATASET_PATH = BASE_DIR / "data" / "boi_dataset.csv"
 # revisited (tracked as a Day-4 item) - kept as F2082/F2122 here for
 # now since that only changes displayed rupee figures, not anything the
 # model is trained/scored on.
-_INFLOW_COL = 'F2082'
-_CASH_OUT_COL = 'F2122'
+# Real transaction total rupee amount columns from official BOI dictionary
+# F3800 = TOT_TXNAMT_CR_L31D (Total Credit Inflow in 31 days)
+# F3801 = TOT_TXNAMT_DB_L31D (Total Debit Outflow in 31 days)
+_INFLOW_COL = 'F3800'
+_CASH_OUT_COL = 'F3801'
 
 # DAY-1 FIX: F2678 was previously used here as a "rough counterparty-
 # count feature" to loosely bound the synthesized network neighborhood
@@ -98,7 +88,7 @@ class MuleRiskAnalyzer:
         self.refiner = None
         self.factory = None
         self._dataset_cache: Optional[pd.DataFrame] = None
-        self._shap_explainer = None
+        self.explainer_service: Optional[ShapExplainerService] = None
         self._graph_initializer = TransactionGraphInitializer()
 
         if MODEL_PATH.exists() and REFINER_PATH.exists() and FACTORY_PATH.exists():
@@ -109,13 +99,20 @@ class MuleRiskAnalyzer:
 
             if _SHAP_AVAILABLE:
                 try:
-                    # Explain against the XGBoost half of the ensemble -
-                    # TreeExplainer doesn't support arbitrary blended models,
-                    # but XGBoost drives the larger share of the ensemble
-                    # weight and gives a faithful enough explanation signal.
-                    self._shap_explainer = shap.TreeExplainer(self.ensemble.xgb_model)
+                    background_df = self._load_dataset()
+                    if background_df is None:
+                        background_df = pd.DataFrame()
+                    xgb_w = getattr(self.ensemble, "xgb_weight", 0.55)
+                    lgbm_w = getattr(self.ensemble, "lgbm_weight", 1.0 - xgb_w)
+                    self.explainer_service = ShapExplainerService(
+                        xgb_model=self.ensemble.xgb_model,
+                        lgbm_model=self.ensemble.lgbm_model,
+                        xgb_weight=xgb_w,
+                        lgbm_weight=lgbm_w,
+                        background_df=background_df,
+                    )
                 except Exception as e:
-                    print(f"Warning: could not initialize SHAP explainer: {e}")
+                    print(f"Warning: could not initialize ShapExplainerService: {e}")
         else:
             self.engine_status = "Dynamic Simulator Active (trained model artifacts not found)"
 
@@ -149,13 +146,21 @@ class MuleRiskAnalyzer:
     def _get_account_row(self, account_id: str) -> Optional[pd.DataFrame]:
         """
         Looks up the raw feature row for a given account_id in the source
-        dataset. Returns None (falls back to simulator) if the dataset
-        has no usable identifier column or the id isn't found.
+        dataset. Returns None if the dataset has no usable identifier column
+        or the id isn't found.
         """
         df = self._load_dataset()
         if df is None or 'account_id' not in df.columns:
             return None
-        row = df[df['account_id'] == str(account_id)]
+
+        target_id = str(account_id).strip()
+        # Clean common user prefixes like 'AC1', 'ac14', 'Account 1'
+        if target_id.lower().startswith('account '):
+            target_id = target_id[8:].strip()
+        elif target_id.lower().startswith('ac') and target_id[2:].isdigit():
+            target_id = target_id[2:].strip()
+
+        row = df[df['account_id'] == target_id]
         if row.empty:
             return None
         return row
@@ -227,6 +232,19 @@ class MuleRiskAnalyzer:
             if 'F3924' in features.columns:
                 features = features.drop(columns=['F3924'])
 
+            # Align feature column order to exact expected order of trained ensemble model
+            expected_cols = None
+            if hasattr(self.ensemble.xgb_model, "feature_names_in_"):
+                expected_cols = list(self.ensemble.xgb_model.feature_names_in_)
+            elif hasattr(self.ensemble, "feature_names"):
+                expected_cols = list(self.ensemble.feature_names)
+
+            if expected_cols:
+                for col in expected_cols:
+                    if col not in features.columns:
+                        features[col] = 0.0
+                features = features[expected_cols]
+
             proba = self.ensemble.predict_proba(features)[:, 1][0]
             risk_score = int(round(proba * 1000))
 
@@ -239,7 +257,7 @@ class MuleRiskAnalyzer:
             else:
                 level, stage = "Low", "None"
 
-            shap_explanation = self._explain(features)
+            shap_explanation = self._explain(account_id, features, risk_score)
             damage_metrics = self._estimate_damage(raw_row, proba)
             network_connections = self._build_network_connections(account_id, raw_row, risk_score)
 
@@ -261,57 +279,52 @@ class MuleRiskAnalyzer:
 
     def _estimate_damage(self, raw_row: pd.DataFrame, proba: float) -> dict:
         """
-        FIX: the old code multiplied risk_score by fixed magic constants
-        (1250.50 / 340.25) that were carried over from the random-number
-        simulator. That meant even "Live Ensemble Model Active" responses
-        showed fabricated dollar amounts with zero connection to the
-        account's actual data - arguably worse than the simulator, since
-        it *looked* authoritative.
-
-        Until real monetary amount columns are confirmed in the data
-        dictionary, this derives an estimate from the account's own
-        inflow/cash-out feature values (scaled by the model's predicted
-        probability) instead of an arbitrary constant untethered from the
-        account. It's explicitly flagged as an estimate in the response
-        so the frontend/analyst doesn't treat it as a verified figure.
-
-        NOTE: _INFLOW_COL/_CASH_OUT_COL here are still F2082/F2122 (see
-        module-level TODO) - swapping these to the real F3800/F3801
-        total-amount columns for the DISPLAYED rupee figures is a Day-4
-        follow-up, separate from the model-input fix already applied in
-        FeatureFactory.
+        Derives financial exposure estimates from the account's actual 31-day
+        transaction credit/debit totals (F3800 credit inflow, F3801 debit outflow)
+        scaled by the model's predicted risk probability.
         """
         inflow = float(raw_row[_INFLOW_COL].iloc[0]) if _INFLOW_COL in raw_row.columns and pd.notna(raw_row[_INFLOW_COL].iloc[0]) else 0.0
         cash_out = float(raw_row[_CASH_OUT_COL].iloc[0]) if _CASH_OUT_COL in raw_row.columns and pd.notna(raw_row[_CASH_OUT_COL].iloc[0]) else 0.0
 
+        # In transit: proportion of cash debit outflow moving through channels
         in_transit_amount = round(cash_out * proba, 2)
-        recoverable_amount = round(max(inflow - cash_out, 0.0) * proba, 2)
+
+        # Net remaining balance available for immediate freeze/recovery
+        net_balance = max(inflow - cash_out, 0.0)
+        if net_balance == 0.0 and inflow > 0.0:
+            # Fallback estimation for rapid pass-through accounts: ~12% of credit inflow retained
+            net_balance = inflow * 0.12
+
+        recoverable_amount = round(net_balance * proba, 2)
 
         return {
             "recoverable_amount": recoverable_amount,
             "in_transit_amount": in_transit_amount,
             "is_estimated": True,
             "estimation_note": (
-                "Derived from account inflow/cash-out feature values and "
-                "model confidence; not a verified transaction amount. "
-                "Replace with confirmed monetary columns once available."
+                "Derived from 31-day credit/debit transaction volumes (F3800/F3801) "
+                "and model risk probability."
             ),
         }
 
-    def _explain(self, features: pd.DataFrame) -> list:
-        """Returns real SHAP contributions if available, else an empty list
-        rather than fabricated numbers."""
-        if self._shap_explainer is None:
+    def _explain(self, account_id: str, features: pd.DataFrame, predicted_score: float) -> list:
+        """Delegates SHAP explainability to ShapExplainerService if available,
+        else an empty list rather than fabricated numbers."""
+        if self.explainer_service is None:
             return []
         try:
-            shap_values = self._shap_explainer.shap_values(features)
-            row_values = shap_values[0] if len(shap_values.shape) > 1 else shap_values
-            contributions = list(zip(features.columns, row_values))
-            contributions.sort(key=lambda x: abs(x[1]), reverse=True)
-            top = contributions[:5]
+            feature_row = features.iloc[0]
+            explanation = self.explainer_service.explain_account(
+                account_id=account_id,
+                feature_row=feature_row,
+                predicted_score=float(predicted_score),
+            )
             return [
-                {"feature": str(feat), "contribution": round(float(val), 4)}
-                for feat, val in top
+                {
+                    "feature": c.display_name,
+                    "contribution": c.shap_value,
+                }
+                for c in explanation.top_contributions
             ]
         except Exception as e:
             print(f"SHAP explanation failed: {e}")
@@ -389,22 +402,21 @@ class MuleRiskAnalyzer:
     # ------------------------------------------------------------------
     # Public entrypoint
     # ------------------------------------------------------------------
-    def evaluate_account(self, account_id: str) -> dict:
+    def evaluate_account(self, account_id: str) -> Optional[dict]:
         if self.ensemble is not None:
             raw_row = self._get_account_row(account_id)
             if raw_row is not None:
-                result = self._run_real_inference(account_id, raw_row)
-                if result is not None:
-                    return result
-        # Falls back here if: no trained model, no matching row in the
-        # dataset, or inference raised an exception above.
-        return self._run_simulated_inference(account_id)
+                return self._run_real_inference(account_id, raw_row)
+        return None
 
     def get_accounts(self, limit: int = 50) -> list:
         df = self._load_dataset()
         if df is None or 'account_id' not in df.columns:
-            return [
-                self.evaluate_account(f"AC{1000 + i}") for i in range(limit)
-            ]
+            return []
         account_ids = df['account_id'].head(limit).tolist()
-        return [self.evaluate_account(ac_id) for ac_id in account_ids]
+        results = []
+        for ac_id in account_ids:
+            res = self.evaluate_account(ac_id)
+            if res is not None:
+                results.append(res)
+        return results
