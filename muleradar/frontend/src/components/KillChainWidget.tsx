@@ -30,7 +30,7 @@ const STAGE_LABELS: Record<KillChainStage, string> = {
 const STAGE_COLORS: Record<KillChainStage, string> = {
   // Muted gray-blue rather than a "warning" color - this state means no
   // active kill-chain stage was detected, not a lower-severity alert.
-  None: '#64748b',
+  None: '#cbd5e1',
   Placement: '#eab308',
   Layering: '#f97316',
   Integration: '#ef4444',
@@ -56,31 +56,51 @@ function KillChainWidget({ killChainStage }: KillChainWidgetProps) {
     <WidgetShell>
       <WidgetTitle>Kill Chain Stage</WidgetTitle>
       <div className="mt-4 flex flex-row gap-2">
-        {KILL_CHAIN_STAGES.map((stage) => {
+        {KILL_CHAIN_STAGES.map((stage, i) => {
           const isActive = stage === active
           return (
-            <div
-              key={stage}
-              className={
-                'flex h-9 flex-1 items-center justify-center border px-2 ' +
-                (isActive
-                  ? 'text-background'
-                  : 'border-border bg-background text-foreground-muted')
-              }
-              style={
-                isActive
-                  ? { backgroundColor: activeColor, borderColor: activeColor }
-                  : undefined
-              }
-            >
-              <span className="text-[11px] font-medium uppercase tracking-wide">
-                {STAGE_LABELS[stage]}
-              </span>
+            <div key={stage} className="flex flex-1 items-center gap-1">
+              <div
+                className="flex h-9 flex-1 items-center justify-center px-2"
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: `${activeColor}1F`, // ~0.12 alpha
+                        border: `1px solid ${activeColor}80`, // ~0.5 alpha
+                        color: activeColor,
+                        boxShadow: `0 0 16px ${activeColor}4D`, // ~0.3 alpha
+                      }
+                    : {
+                        color: '#334155',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'transparent',
+                      }
+                }
+              >
+                <span
+                  className="text-[11px] font-medium uppercase"
+                  style={{ letterSpacing: '0.12em' }}
+                >
+                  {STAGE_LABELS[stage]}
+                </span>
+              </div>
+              {/* Arrow separators between pills (skip after last). */}
+              {i < KILL_CHAIN_STAGES.length - 1 && (
+                <span
+                  className="select-none text-xs"
+                  style={{ color: '#1e293b' }}
+                >
+                  →
+                </span>
+              )}
             </div>
           )
         })}
       </div>
-      <p className="mt-6 text-xs text-foreground">
+      <p
+        className="mt-6 text-xs"
+        style={{ color: activeColor }}
+      >
         Stage {activeIndex + 1} of {KILL_CHAIN_STAGES.length} —{' '}
         {ACTION_COPY[active] ?? ACTION_COPY.None}
       </p>

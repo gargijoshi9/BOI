@@ -12,19 +12,29 @@ interface DrawerContextValue {
   toggleDrawer: () => void
   closeDrawer: () => void
   openDrawer: () => void
+  openDrawerForAccount: (accountId: string) => void
+  initialAccountId: string | null
 }
 
 const DrawerContext = createContext<DrawerContextValue | null>(null)
 
 export function DrawerProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [initialAccountId, setInitialAccountId] = useState<string | null>(null)
   const openDrawer = useCallback(() => setIsOpen(true), [])
-  const closeDrawer = useCallback(() => setIsOpen(false), [])
+  const closeDrawer = useCallback(() => {
+    setIsOpen(false)
+    setInitialAccountId(null)
+  }, [])
   const toggleDrawer = useCallback(() => setIsOpen((prev) => !prev), [])
+  const openDrawerForAccount = useCallback((accountId: string) => {
+    setInitialAccountId(accountId)
+    setIsOpen(true)
+  }, [])
 
   const value = useMemo(
-    () => ({ isOpen, openDrawer, closeDrawer, toggleDrawer }),
-    [isOpen, openDrawer, closeDrawer, toggleDrawer],
+    () => ({ isOpen, openDrawer, closeDrawer, toggleDrawer, openDrawerForAccount, initialAccountId }),
+    [isOpen, openDrawer, closeDrawer, toggleDrawer, openDrawerForAccount, initialAccountId],
   )
 
   return <DrawerContext.Provider value={value}>{children}</DrawerContext.Provider>
