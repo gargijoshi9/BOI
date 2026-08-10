@@ -14,7 +14,7 @@ const MIN_WIDTH = 280
 const MAX_WIDTH = 600
 
 function AIDrawer() {
-  const { isOpen, closeDrawer } = useDrawer()
+  const { isOpen, closeDrawer, initialAccountId } = useDrawer()
   const [accountId, setAccountId] = useState('')
   const [summary, setSummary] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -24,6 +24,25 @@ function AIDrawer() {
   const dragStartXRef = useRef(0)
   const dragStartWidthRef = useRef(DEFAULT_WIDTH)
   const isDraggingRef = useRef(false)
+
+  // Auto-fetch summary when initialAccountId changes
+  useEffect(() => {
+    if (initialAccountId && initialAccountId !== accountId) {
+      setAccountId(initialAccountId)
+      setSummary(null)
+      setError(null)
+      setLoading(true)
+      fetchAIAssistantSummary(initialAccountId)
+        .then((result) => {
+          setSummary(result)
+          setLoading(false)
+        })
+        .catch(() => {
+          setError('Could not generate summary. Try again.')
+          setLoading(false)
+        })
+    }
+  }, [initialAccountId])
 
   const handlePointerMove = useCallback((e: globalThis.PointerEvent) => {
     if (!isDraggingRef.current) return
@@ -184,24 +203,28 @@ function AIDrawer() {
         />
         <button
           type="submit"
+          disabled={loading}
           className="px-6 py-3 text-sm font-medium uppercase tracking-wider"
           style={{
-            background: 'rgba(34, 211, 238, 0.1)',
-            border: '1px solid rgba(34, 211, 238, 0.4)',
-            color: '#22d3ee',
+            background: loading ? 'rgba(34, 211, 238, 0.05)' : 'rgba(34, 211, 238, 0.1)',
+            border: loading ? '1px solid rgba(34, 211, 238, 0.2)' : '1px solid rgba(34, 211, 238, 0.4)',
+            color: loading ? '#22d3ee80' : '#22d3ee',
             transition: 'all 200ms ease',
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
           onMouseEnter={(e) => {
+            if (loading) return
             e.currentTarget.style.background = 'rgba(34, 211, 238, 0.2)'
             e.currentTarget.style.boxShadow =
               '0 0 20px rgba(34, 211, 238, 0.2)'
           }}
           onMouseLeave={(e) => {
+            if (loading) return
             e.currentTarget.style.background = 'rgba(34, 211, 238, 0.1)'
             e.currentTarget.style.boxShadow = 'none'
           }}
         >
-          Summarize
+          {loading ? 'Generating...' : 'Summarize'}
         </button>
       </form>
 

@@ -4,23 +4,38 @@ function Navbar() {
   return (
     <nav className="flex w-full items-center justify-between py-8">
       {/* Logo */}
-      <div className="flex items-center gap-2">
+      <Link to="/" className="flex items-center gap-2" style={{ textDecoration: 'none' }}>
         <span className="text-2xl font-bold tracking-tight text-white">
           MULE<span className="font-normal opacity-80">RADAR</span>
         </span>
-      </div>
+      </Link>
 
       {/* Nav Links - Glass Pill */}
       <div className="hidden lg:flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1 backdrop-blur-md">
-        <a href="#" className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white">
-          About
-        </a>
-        <a href="#" className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white">
-          How it works
-        </a>
-        <a href="#" className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white">
-          Features
-        </a>
+        <Link
+          to="/dashboard"
+          className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          Dashboard
+        </Link>
+        <Link
+          to="/shap"
+          className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          SHAP
+        </Link>
+        <Link
+          to="/network"
+          className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          Network
+        </Link>
+        <Link
+          to="/accounts"
+          className="rounded-full px-6 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          Accounts
+        </Link>
       </div>
 
       {/* CTA Button */}
