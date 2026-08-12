@@ -2,6 +2,7 @@ import { useState } from 'react'
 import PageShell from '../components/PageShell'
 import ShapWidget from '../components/ShapWidget'
 import { useApp } from '../context/AppContext'
+import InvestigationReportModal from '../components/InvestigationReportModal'
 
 function SHAPPage() {
   const { currentAccount, evaluateAccount, isEvaluating, evaluationError, recentEvaluations } = useApp()
@@ -18,6 +19,7 @@ function SHAPPage() {
     await handleAccountSelect(trimmed)
   }
 
+  const [isReportOpen, setIsReportOpen] = useState(false)
   const shapFeatures = currentAccount?.shap_explanation ?? []
 
   return (
@@ -129,9 +131,24 @@ function SHAPPage() {
                 <ShapWidget shapExplanation={shapFeatures} />
 
                 <div className="glass flex flex-col p-5 mt-5">
-                  <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-                    Account Context
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-medium uppercase" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
+                      Account Context
+                    </h3>
+                    <button
+                      onClick={() => setIsReportOpen(true)}
+                      className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-lg hover:scale-105"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(168, 85, 247, 0.2))',
+                        border: '1px solid rgba(34, 211, 238, 0.5)',
+                        color: '#22d3ee',
+                        boxShadow: '0 0 15px rgba(34, 211, 238, 0.15)',
+                      }}
+                    >
+                      <span>📄</span> Generate Investigation Report
+                    </button>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="block text-xs" style={{ color: '#94a3b8' }}>Risk Score</span>
@@ -153,6 +170,13 @@ function SHAPPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* PDF Investigation Report Modal */}
+                <InvestigationReportModal
+                  account={currentAccount}
+                  isOpen={isReportOpen}
+                  onClose={() => setIsReportOpen(false)}
+                />
               </>
             ) : (
               <>
