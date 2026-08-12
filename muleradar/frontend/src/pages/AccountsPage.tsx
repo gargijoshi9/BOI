@@ -23,7 +23,7 @@ const RISK_GLOWS: Record<RiskLevel, string> = {
 }
 
 function AccountsPage() {
-  const { currentAccount, evaluateAccount, recentEvaluations } = useApp()
+  const { currentAccount, evaluateAccount } = useApp()
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<{ key: keyof RiskEvaluationResponse; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
@@ -118,7 +118,7 @@ function AccountsPage() {
 
   return (
     <PageShell>
-      <div className="flex flex-1 flex-col gap-6 overflow-hidden p-6">
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -157,58 +157,64 @@ function AccountsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
-              <span className="text-xl">🚨</span>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', background: 'linear-gradient(145deg, rgba(239, 68, 68, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:bg-red-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">🚨</span>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Critical</p>
-              <p className="text-xl font-bold" style={{ color: '#ef4444' }}>{stats.critical}</p>
-            </div>
-          </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(249, 115, 22, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(249, 115, 22, 0.15)' }}>
-              <span className="text-xl">⚠️</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>High</p>
-              <p className="text-xl font-bold" style={{ color: '#f97316' }}>{stats.high}</p>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>Critical</p>
+              <p className="text-2xl font-black text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">{stats.critical}</p>
             </div>
           </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(234, 179, 8, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(234, 179, 8, 0.15)' }}>
-              <span className="text-xl">🟡</span>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(249, 115, 22, 0.3)', background: 'linear-gradient(145deg, rgba(249, 115, 22, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)] group-hover:bg-orange-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">⚠️</span>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Medium</p>
-              <p className="text-xl font-bold" style={{ color: '#eab308' }}>{stats.medium}</p>
-            </div>
-          </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(34, 197, 94, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
-              <span className="text-xl">✅</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Low</p>
-              <p className="text-xl font-bold" style={{ color: '#22c55e' }}>{stats.low}</p>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>High</p>
+              <p className="text-2xl font-black text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">{stats.high}</p>
             </div>
           </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(168, 85, 247, 0.15)' }}>
-              <span className="text-xl">💰</span>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(234, 179, 8, 0.3)', background: 'linear-gradient(145deg, rgba(234, 179, 8, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.15)] group-hover:bg-yellow-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">🟡</span>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Total Exposure</p>
-              <p className="text-lg font-bold" style={{ color: '#a855f7' }}>{formatINR(stats.totalExposure)}</p>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>Medium</p>
+              <p className="text-2xl font-black text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]">{stats.medium}</p>
             </div>
           </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(34, 211, 238, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(34, 211, 238, 0.15)' }}>
-              <span className="text-xl">🏦</span>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(34, 197, 94, 0.3)', background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.15)] group-hover:bg-green-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">✅</span>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Total Accounts</p>
-              <p className="text-xl font-bold text-gradient-cyan-purple">{stats.total}</p>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>Low</p>
+              <p className="text-2xl font-black text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">{stats.low}</p>
+            </div>
+          </div>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)] group-hover:bg-purple-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">💰</span>
+            </div>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>Total Exposure</p>
+              <p className="text-xl font-black text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]">{formatINR(stats.totalExposure)}</p>
+            </div>
+          </div>
+          <div className="glass p-4 flex flex-row items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 relative overflow-hidden group" style={{ borderColor: 'rgba(34, 211, 238, 0.3)', background: 'linear-gradient(145deg, rgba(34, 211, 238, 0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-cyan-500/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.15)] group-hover:bg-cyan-500/20 transition-colors">
+              <span className="text-xl drop-shadow-md">🏦</span>
+            </div>
+            <div className="z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>Total Accounts</p>
+              <p className="text-2xl font-black text-gradient-cyan-purple drop-shadow-[0_0_8px_rgba(34,211,238,0.2)]">{stats.total}</p>
             </div>
           </div>
         </div>
@@ -245,7 +251,7 @@ function AccountsPage() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 glass flex flex-col overflow-hidden">
+        <div className="flex-1 glass flex flex-col overflow-hidden min-h-[400px]">
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
               <p className="text-sm" style={{ color: '#22d3ee' }}>
@@ -265,34 +271,33 @@ function AccountsPage() {
             </div>
           ) : (
             <>
-              <div className="flex flex-row items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-                <div className="flex flex-row items-center gap-2 text-xs" style={{ color: '#94a3b8', letterSpacing: '0.18em' }}>
-                  <span className="flex-1 min-w-[140px]" onClick={() => handleSort('account_id')} style={{ cursor: 'pointer' }}>
-                    Account ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center" onClick={() => handleSort('risk_score')} style={{ cursor: 'pointer' }}>
-                    Score {sortConfig?.key === 'risk_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-28 text-center" onClick={() => handleSort('risk_level')} style={{ cursor: 'pointer' }}>
-                    Level {sortConfig?.key === 'risk_level' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-36 text-center" onClick={() => handleSort('kill_chain_stage')} style={{ cursor: 'pointer' }}>
-                    Stage {sortConfig?.key === 'kill_chain_stage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-40 text-center" onClick={() => handleSort('damage_metrics')} style={{ cursor: 'pointer' }}>
-                    Recoverable {sortConfig?.key === 'damage_metrics' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center">
-                    Network
-                  </span>
-                  <span className="w-24 text-center">
-                    Actions
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full border-collapse text-sm">
+              <div className="flex-1 overflow-y-auto relative">
+                <table className="w-full border-collapse text-sm text-left">
+                  <thead className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
+                    <tr className="text-xs uppercase tracking-[0.18em] transition-colors" style={{ color: '#94a3b8' }}>
+                      <th className="px-8 py-5 min-w-[140px] font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('account_id')}>
+                        Account ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-5 w-24 text-center font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('risk_score')}>
+                        Score {sortConfig?.key === 'risk_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-5 w-28 text-center font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('risk_level')}>
+                        Level {sortConfig?.key === 'risk_level' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-5 w-36 text-center font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('kill_chain_stage')}>
+                        Stage {sortConfig?.key === 'kill_chain_stage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-5 w-40 text-center font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('damage_metrics')}>
+                        Recoverable {sortConfig?.key === 'damage_metrics' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-5 w-24 text-center font-medium">
+                        Network
+                      </th>
+                      <th className="px-6 py-5 w-24 text-center font-medium">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {filteredAccounts.map((row) => (
                       <tr
@@ -301,27 +306,28 @@ function AccountsPage() {
                         className="cursor-pointer hover:bg-white/5 transition-colors border-b"
                         style={{ borderColor: 'rgba(255, 255, 255, 0.04)' }}
                       >
-                        <td className="px-6 py-4 font-mono min-w-[140px]">
+                        <td className="px-8 py-5 font-mono min-w-[140px]">
                           <span className="flex flex-row items-center gap-2" style={{ color: '#22d3ee' }}>
                             {row.account_id}
                             {row.is_simulated && (
                               <span
                                 title="Simulated result - no trained model artifacts matched this account"
-                                className="inline-flex items-center bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 rounded"
+                                className="inline-flex items-center bg-red-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 rounded-md"
                               >
                                 Sim
                               </span>
                             )}
                           </span>
                         </td>
-                        <td className="px-6 py-4 w-24 text-center tabular-nums font-bold" style={{ color: '#f8fafc' }}>
+                        <td className="px-6 py-5 w-24 text-center tabular-nums font-bold" style={{ color: '#f8fafc' }}>
                           {row.risk_score}
                         </td>
-                        <td className="px-6 py-4 w-28 text-center">
+                        <td className="px-6 py-5 w-28 text-center">
                           <span
-                            className="inline-flex items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded"
+                            className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md"
                             style={{
-                              backgroundColor: `${RISK_COLORS[row.risk_level]}33`,
+                              backgroundColor: `${RISK_COLORS[row.risk_level]}20`,
+                              border: `1px solid ${RISK_COLORS[row.risk_level]}40`,
                               color: RISK_COLORS[row.risk_level],
                               boxShadow: RISK_GLOWS[row.risk_level],
                             }}
@@ -329,26 +335,29 @@ function AccountsPage() {
                             {row.risk_level}
                           </span>
                         </td>
-                        <td className="px-6 py-4 w-36 text-center" style={{ color: '#94a3b8' }}>
+                        <td className="px-6 py-5 w-36 text-center font-medium" style={{ color: '#94a3b8' }}>
                           {row.kill_chain_stage}
                         </td>
-                        <td className="px-6 py-4 w-40 text-center tabular-nums font-medium" style={{ color: '#a855f7' }}>
+                        <td className="px-6 py-5 w-40 text-center tabular-nums font-semibold" style={{ color: '#a855f7' }}>
                           {formatINR(row.damage_metrics?.recoverable_amount ?? 0)}
                         </td>
-                        <td className="px-6 py-4 w-24 text-center text-xs" style={{ color: '#94a3b8' }}>
-                          {row.network_connections?.nodes.length ?? 0} nodes
+                        <td className="px-6 py-5 w-24 text-center text-xs" style={{ color: '#94a3b8' }}>
+                          <span className="px-2 py-1 bg-white/5 rounded-md border border-white/5 inline-flex items-center gap-1">
+                            {row.network_connections?.nodes.length ?? 0} nodes
+                          </span>
                         </td>
-                        <td className="px-6 py-4 w-24 text-center">
+                        <td className="px-6 py-5 w-24 text-center">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               handleRowClick(row)
                             }}
-                            className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider rounded transition-all"
+                            className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all hover:bg-cyan-400/20"
                             style={{
                               background: 'rgba(34, 211, 238, 0.1)',
                               border: '1px solid rgba(34, 211, 238, 0.3)',
                               color: '#22d3ee',
+                              boxShadow: '0 0 10px rgba(34, 211, 238, 0.1)'
                             }}
                           >
                             View
@@ -363,57 +372,7 @@ function AccountsPage() {
           )}
         </div>
 
-        {/* Recent Evaluations Quick Access */}
-        {recentEvaluations.length > 0 && (
-          <div className="glass flex flex-col p-5">
-            <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-              Recent Evaluations
-            </h3>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto">
-              {recentEvaluations.map((acc) => (
-                <button
-                  key={acc.account_id}
-                  onClick={() => handleRowClick({ 
-                    account_id: acc.account_id, 
-                    risk_score: acc.risk_score, 
-                    risk_level: acc.risk_level as RiskLevel, 
-                    kill_chain_stage: acc.kill_chain_stage as any, 
-                    damage_metrics: { recoverable_amount: 0, in_transit_amount: 0, is_estimated: true }, 
-                    is_simulated: acc.is_simulated,
-                    shap_explanation: [],
-                    network_connections: { nodes: [], edges: [] }
-                  })}
-                  className="block w-full p-3 rounded-lg transition-all hover:bg-white/5 border text-left"
-                  style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}
-                >
-                  <div className="flex flex-row items-center justify-between">
-                    <span className="font-mono text-sm" style={{ color: '#f8fafc' }}>
-                      {acc.account_id}
-                      {acc.is_simulated && (
-                        <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-red-500/20 text-red-400">
-                          Sim
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded"
-                      style={{
-                        background: `${acc.risk_level === 'Critical' ? '#ef4444' : acc.risk_level === 'High' ? '#f97316' : acc.risk_level === 'Medium' ? '#eab308' : '#22c55e'}33`,
-                        color: acc.risk_level === 'Critical' ? '#ef4444' : acc.risk_level === 'High' ? '#f97316' : acc.risk_level === 'Medium' ? '#eab308' : '#22c55e',
-                      }}
-                    >
-                      {acc.risk_level}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-row items-center gap-3 text-xs" style={{ color: '#94a3b8' }}>
-                    <span>Score: <span className="font-bold" style={{ color: '#f8fafc' }}>{acc.risk_score}</span></span>
-                    <span>{acc.kill_chain_stage}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Detail Drawer */}

@@ -13,6 +13,26 @@ const DEFAULT_WIDTH = 380
 const MIN_WIDTH = 280
 const MAX_WIDTH = 600
 
+function getPointStyle(text: string) {
+  const t = text.toLowerCase()
+  if (t.includes('critical') || t.includes('high risk') || t.includes('fraud') || t.includes('scam') || t.includes('suspicious') || t.includes('flagged')) {
+    return { emoji: '🚨', borderClass: 'border-red-500/20 hover:border-red-500/40 hover:bg-red-500/5', textClass: 'text-red-400' }
+  }
+  if (t.includes('network') || t.includes('connection') || t.includes('ring') || t.includes('cluster') || t.includes('node') || t.includes('graph')) {
+    return { emoji: '🔗', borderClass: 'border-cyan-500/20 hover:border-cyan-500/40 hover:bg-cyan-500/5', textClass: 'text-cyan-400' }
+  }
+  if (t.includes('transaction') || t.includes('money') || t.includes('amount') || t.includes('transfer') || t.includes('layering') || t.includes('exposure') || t.includes('fund')) {
+    return { emoji: '💸', borderClass: 'border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5', textClass: 'text-purple-400' }
+  }
+  if (t.includes('safe') || t.includes('normal') || t.includes('low risk') || t.includes('clean') || t.includes('legitimate')) {
+    return { emoji: '✅', borderClass: 'border-green-500/20 hover:border-green-500/40 hover:bg-green-500/5', textClass: 'text-green-400' }
+  }
+  if (t.includes('model') || t.includes('shap') || t.includes('feature') || t.includes('ai') || t.includes('score')) {
+    return { emoji: '🤖', borderClass: 'border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/5', textClass: 'text-blue-400' }
+  }
+  return { emoji: '💡', borderClass: 'border-slate-500/20 hover:border-slate-500/40 hover:bg-slate-500/5', textClass: 'text-slate-400' }
+}
+
 function AIDrawer() {
   const { isOpen, closeDrawer, initialAccountId } = useDrawer()
   const [accountId, setAccountId] = useState('')
@@ -246,12 +266,27 @@ function AIDrawer() {
           </p>
         )}
         {!loading && !error && summary && (
-          <p
-            className="whitespace-pre-line break-words text-sm"
-            style={{ color: '#cbd5e1', lineHeight: 1.7 }}
-          >
-            {summary}
-          </p>
+          <div className="space-y-3">
+            {(summary.split('\n').filter(p => p.trim().length > 0).length > 1 
+                ? summary.split('\n') 
+                : summary.split(/(?<=\.)\s+/)
+              )
+              .map(p => p.trim().replace(/^[-*•]\s*/, ''))
+              .filter(p => p.length > 0)
+              .map((point, idx) => {
+                const style = getPointStyle(point)
+                return (
+                  <div key={idx} className={`flex gap-3 items-start glass p-4 rounded-xl border transition-all ${style.borderClass}`}>
+                    <div className="mt-0.5 flex-shrink-0 text-base drop-shadow-md">
+                      {style.emoji}
+                    </div>
+                    <p className="text-sm text-slate-200 leading-relaxed m-0">
+                      {point}
+                    </p>
+                  </div>
+                )
+              })}
+          </div>
         )}
         {!loading && !error && !summary && (
           <p className="text-sm" style={{ color: '#cbd5e1' }}>

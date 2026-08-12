@@ -95,7 +95,7 @@ function Dashboard() {
     return (
       <>
         {/* Top Row - Risk Score & Damage Forecast */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-3">
           <RiskScoreWidget
             riskScore={currentAccount!.risk_score}
             riskLevel={currentAccount!.risk_level}
@@ -104,11 +104,58 @@ function Dashboard() {
           <DamageForecastWidget damageMetrics={currentAccount!.damage_metrics} />
         </div>
 
+        {/* Action Button */}
+        <div className="flex mb-5">
+          {currentAccount!.risk_score >= 800 ? (
+            <button className="flex-1 p-3 rounded-xl font-black text-lg tracking-widest uppercase transition-all flex items-center justify-center gap-3 relative overflow-hidden group"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#ef4444',
+                boxShadow: '0 0 20px rgba(239, 68, 68, 0.15)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'
+                e.currentTarget.style.boxShadow = '0 0 30px rgba(239, 68, 68, 0.3)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.15)'
+              }}
+            >
+              <div className="absolute inset-0 bg-red-500/10 blur-xl group-hover:bg-red-500/20 transition-all duration-500"></div>
+              <span className="z-10 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">Auto-Freeze Account</span>
+            </button>
+          ) : (
+            <button className="flex-1 p-3 rounded-xl font-black text-lg tracking-widest uppercase transition-all flex items-center justify-center gap-3 relative overflow-hidden group"
+              style={{
+                background: 'rgba(234, 179, 8, 0.1)',
+                border: '1px solid rgba(234, 179, 8, 0.4)',
+                color: '#eab308',
+                boxShadow: '0 0 20px rgba(234, 179, 8, 0.15)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(234, 179, 8, 0.2)'
+                e.currentTarget.style.boxShadow = '0 0 30px rgba(234, 179, 8, 0.3)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(234, 179, 8, 0.15)'
+              }}
+            >
+              <div className="absolute inset-0 bg-yellow-500/10 blur-xl group-hover:bg-yellow-500/20 transition-all duration-500"></div>
+              <span className="z-10 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]">Human Review</span>
+            </button>
+          )}
+        </div>
+
         {/* Kill Chain Stage - Full Width Below */}
-        <KillChainWidget killChainStage={currentAccount!.kill_chain_stage} />
+        <div className="mb-4">
+          <KillChainWidget killChainStage={currentAccount!.kill_chain_stage} />
+        </div>
 
         {/* Quick Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="glass p-5 flex flex-row items-center gap-4 glow-cyan">
             <div className="p-3 rounded-lg" style={{ background: 'rgba(34, 211, 238, 0.15)' }}>
               <span className="text-2xl">🔗</span>

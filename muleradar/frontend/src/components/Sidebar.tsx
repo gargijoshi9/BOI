@@ -64,11 +64,6 @@ function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto p-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-        <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
-          v1.0.0
-        </p>
-      </div>
     </aside>
   )
 }

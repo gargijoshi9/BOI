@@ -4,27 +4,31 @@
 
 /* ---------- Webkit browsers (Chrome, Edge, Safari) ---------- */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333333;
-  border-radius: 0px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555555;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* ---------- Firefox ---------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #333333 #000000;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 @layer base {
