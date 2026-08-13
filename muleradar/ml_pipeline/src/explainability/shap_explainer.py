@@ -37,36 +37,39 @@ logger = logging.getLogger(__name__)
 # Anything not in this dict falls back to a cleaned-up version of its raw name.
 
 FEATURE_DISPLAY_NAMES: dict[str, str] = {
-    "F115": "R_CI_NON_CASH_CHQ_TXN_L14_31D (Non-Cash Cheque Ratio 14-31D)",
-    "F321": "RA_NON_CASH_CHQ_AMT_L7_14D (Non-Cash Cheque Amount Ratio 7-14D)",
-    "F527": "RA_CI_NON_CASH_CHQ_TXN_CR_L7_31D (Non-Cash Cheque Credit Ratio 7-31D)",
-    "F531": "RA_CI_NON_CASH_CHQ_AMT_DB_L7_31D (Non-Cash Cheque Debit Amount Ratio 7-31D)",
-    "F670": "MIN_UPI_XFER_TXNS_L7D (Min UPI Transfer Count 7D)",
-    "F1692": "CASH_TXNS_DB_L14D (Cash Debit Txn Count 14D)",
-    "F2082": "AVG_NET_BNKING_TXNS_DB_L14D (Avg Net Banking Debit Txns 14D)",
-    "F2122": "AVG_CASH_TXNS_L31D (Avg Cash Txn Count 31D)",
-    "F2582": "DA_UPI_TXN_CR_L7_14D (UPI Credit Amount Deviation 7-14D)",
-    "F2678": "DA_ELEC_XFER_AMT_L14_31D (Electronic Transfer Amount Deviation 14-31D)",
-    "F2737": "DA_NON_CASH_CHQ_AMT_L7_31D (Non-Cash Cheque Amount Deviation 7-31D)",
-    "F2956": "D_TA_CI_NON_CASH_CHQ_TXN_CR_L14D (Non-Cash Cheque Credit Deviation 14D)",
-    "F3043": "D_TA_CASH_TXN_L31D (Cash Txn Total Deviation 31D)",
-    "F3800": "TOT_TXNAMT_CR_L31D (Total Credit Inflow Amount 31D)",
-    "F3801": "TOT_TXNAMT_DB_L31D (Total Debit Outflow Amount 31D)",
-    "F3836": "AVG_BAL_14DAYS (Average 14-Day Account Balance)",
-    "F3887": "TENURE_AS_OF_ALERT (Account Tenure as of Alert)",
-    "F3889": "ACCT_OPN_DAYS (Account Age / Open Days)",
-    "F3891": "CUST_OCCP (Customer Occupation)",
-    "F3894": "AGE_IN_YRS (Customer Age in Years)",
-    "F3924": "FRAUD_TGT (Mule Risk Target Flag)",
-    "pass_through_ratio": "Cash Pass-Through Velocity Ratio",
-    "inward_concentration": "Inward Fund Concentration Ratio",
-    "inward_concentration_ratio": "Inward Fund Concentration Ratio",
-    "sudden_activation": "Sudden Activation After Dormancy",
-    "narrow_network_flag": "Narrow Counterparty Network",
-    "cash_network_interaction": "High Cash Use with Few Counterparties",
-    "dormancy_flag": "Prior Account Dormancy Flag",
-    "account_freshness_flag": "New Account (<31 Days)",
-    "high_cash_ratio": "High Cash Withdrawal Ratio",
+    "F115": "Cheque Usage Ratio",
+    "F321": "Recent Cheque Amount Ratio",
+    "F527": "Cheque Credit Ratio",
+    "F531": "Cheque Debit Ratio",
+    "F670": "Weekly Min UPI Transfers",
+    "F1692": "14-Day Cash Withdrawals",
+    "F2082": "Net-Banking Debit Frequency",
+    "F2122": "Monthly Cash Activity",
+    "F2582": "Unusual UPI Credit Surge",
+    "F2678": "E-Transfer Volume Surge",
+    "F2737": "Cheque Value Anomaly",
+    "F2956": "Cheque Deposit Surge",
+    "F3043": "Cash Volume Deviation",
+    "F3800": "Total 31-Day Inflow",
+    "F3801": "Total 31-Day Outflow",
+    "F3836": "14-Day Average Balance",
+    "F3887": "Account Tenure at Alert",
+    "F3889": "Account Age (Days Open)",
+    "F3891": "Customer Occupation Category",
+    "F3894": "Customer Age",
+    "F3924": "Mule Target Status",
+    "pass_through_ratio": "Rapid Cash Pass-Through",
+    "inward_concentration": "Inbound Transfer Concentration",
+    "inward_concentration_ratio": "Inbound Transfer Concentration",
+    "sudden_activation": "Reactivation After Dormancy",
+    "narrow_network_flag": "Limited Counterparty Network",
+    "cash_network_interaction": "High Cash / Low Counterparty",
+    "dormancy_flag": "Prior Account Dormancy",
+    "account_freshness_flag": "New Account (< 31 Days)",
+    "high_cash_ratio": "High Cash Withdrawal Share",
+    "CASH_TO_UPI_RATIO": "Cash to UPI Transfer Ratio",
+    "ELEC_TO_CASH_RATIO": "E-Transfer to Cash Ratio",
+    "VELOCITY_PROXY": "Transaction Velocity Score",
 }
 
 # Human-readable direction phrasing per feature, used when generating the
@@ -95,12 +98,18 @@ def _display_name(feature: str) -> str:
         return FEATURE_DISPLAY_NAMES[feature]
     if feature.endswith("_was_missing"):
         base_feat = feature[:-12]
-        base_desc = FEATURE_DISPLAY_NAMES.get(base_feat, base_feat)
-        return f"{base_desc} (Missing Value Signal)"
+        base_desc = FEATURE_DISPLAY_NAMES.get(base_feat, base_feat.replace("_", " ").capitalize())
+        return f"Missing {base_desc}"
     if feature.startswith("F3891_is_"):
         occ_type = feature[9:].capitalize()
-        return f"CUST_OCCP: {occ_type}"
-    return feature.replace("_", " ").capitalize()
+        return f"Occupation: {occ_type}"
+    # Strip raw feature codes like F1057 or F1597 if unmapped
+    import re
+    clean_name = re.sub(r"^F\d+_", "", feature)
+    clean_name = re.sub(r"^F\d+$", "", clean_name)
+    if not clean_name:
+        clean_name = feature
+    return clean_name.replace("_", " ").title()
 
 
 # ---------------------------------------------------------------------------

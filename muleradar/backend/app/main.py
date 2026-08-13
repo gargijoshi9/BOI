@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- PATH RESOLUTION ---
 # This finds the root 'muleradar' folder so we can securely import 'ml_pipeline'
 # __file__ represents main.py -> app/ -> backend/ -> muleradar/
-# Reload trigger: sync with updated BOI feature dictionary descriptions
+# Reload trigger: sync with short plain-English SHAP feature descriptions
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 

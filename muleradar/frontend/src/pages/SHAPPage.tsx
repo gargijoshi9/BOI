@@ -3,6 +3,7 @@ import PageShell from '../components/PageShell'
 import ShapWidget from '../components/ShapWidget'
 import { useApp } from '../context/AppContext'
 import { WidgetShell, WidgetTitle } from '../components/RiskScoreWidget'
+import InvestigationReportModal from '../components/InvestigationReportModal'
 
 function SHAPPage() {
   const { currentAccount, evaluateAccount, isEvaluating, evaluationError, recentEvaluations } = useApp()
@@ -19,6 +20,7 @@ function SHAPPage() {
     await handleAccountSelect(trimmed)
   }
 
+  const [isReportOpen, setIsReportOpen] = useState(false)
   const shapFeatures = currentAccount?.shap_explanation ?? []
 
   return (
@@ -119,7 +121,15 @@ function SHAPPage() {
                 </WidgetShell>
 
                 <WidgetShell>
-                  <WidgetTitle>Account Context</WidgetTitle>
+                  <div className="flex items-center justify-between">
+                    <WidgetTitle>Account Context</WidgetTitle>
+                    <button
+                      onClick={() => setIsReportOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all border border-accent/50 text-accent hover:bg-accent/10 shadow-lg hover:scale-105"
+                    >
+                      <span>📄</span> Generate Investigation Report
+                    </button>
+                  </div>
                   <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-background-card border border-border/50">
                       <span className="stat-label">Risk Score</span>
@@ -147,6 +157,13 @@ function SHAPPage() {
                     </div>
                   </div>
                 </WidgetShell>
+
+                {/* PDF Investigation Report Modal */}
+                <InvestigationReportModal
+                  account={currentAccount}
+                  isOpen={isReportOpen}
+                  onClose={() => setIsReportOpen(false)}
+                />
               </>
             ) : (
               <WidgetShell className="flex-1 flex flex-col items-center justify-center min-h-[500px]">
