@@ -75,27 +75,12 @@ function Sidebar() {
           )
         })}
 
-<<<<<<< Updated upstream
       <div className="mt-auto p-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
         <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
           v1.0.0
         </p>
       </div>
-=======
-        <div className="mt-auto pt-6 border-t border-border/50">
-          <Link
-            to="/"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-body-sm font-medium text-foreground-muted hover:bg-background-card hover:text-foreground hover:border-border/50 transition-all duration-200 border"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5" />
-              <path d="M12 19l-7-7 7-7" />
-            </svg>
-            Back to Platform
-          </Link>
-        </div>
       </nav>
->>>>>>> Stashed changes
     </aside>
   )
 }

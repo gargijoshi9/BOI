@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-<<<<<<< Updated upstream
 /* ---------- Webkit browsers (Chrome, Edge, Safari) ---------- */
 ::-webkit-scrollbar {
   width: 6px;
@@ -27,9 +26,6 @@
   scrollbar-width: thin;
   scrollbar-color: #333333 #000000;
 }
-
-=======
->>>>>>> Stashed changes
 @layer base {
   html,
   body,

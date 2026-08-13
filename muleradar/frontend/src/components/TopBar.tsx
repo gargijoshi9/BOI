@@ -32,23 +32,6 @@ function TopBar() {
 
       <div className="flex items-center gap-4">
         <span
-<<<<<<< Updated upstream
-          className={
-            'inline-block h-2 w-2 rounded-full live-dot ' +
-            (isConnecting ? '' : '')
-          }
-          style={{ backgroundColor: accentColor }}
-        />
-        {isHealthy ? (
-          <>
-            <span>LIVE</span>
-            <span style={{ color: '#0da57aff' }}>— {health?.mode}</span>
-          </>
-        ) : (
-          <span style={{ color: '#cbd5e1' }}>Connecting...</span>
-        )}
-      </span>
-=======
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-caption font-medium transition-all duration-200"
           style={{
             background: isHealthy ? 'rgba(0, 212, 170, 0.1)' : 'rgba(239, 68, 68, 0.1)',
@@ -78,7 +61,6 @@ function TopBar() {
           <span>UTC</span>
         </div>
       </div>
->>>>>>> Stashed changes
     </header>
   )
 }

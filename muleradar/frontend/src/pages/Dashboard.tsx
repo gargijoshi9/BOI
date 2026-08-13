@@ -65,12 +65,8 @@ function Dashboard() {
 
     return (
       <>
-<<<<<<< Updated upstream
-        {/* Top Row - Risk Score & Damage Forecast */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-=======
+        {/* Top Row - Risk Score, Damage Forecast, Kill Chain Stage */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
->>>>>>> Stashed changes
           <RiskScoreWidget
             riskScore={currentAccount!.risk_score}
             riskLevel={currentAccount!.risk_level}
@@ -80,22 +76,6 @@ function Dashboard() {
           <KillChainWidget killChainStage={currentAccount!.kill_chain_stage} />
         </div>
 
-<<<<<<< Updated upstream
-        {/* Kill Chain Stage - Full Width Below */}
-        <KillChainWidget killChainStage={currentAccount!.kill_chain_stage} />
-
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="glass p-5 flex flex-row items-center gap-4 glow-cyan">
-            <div className="p-3 rounded-lg" style={{ background: 'rgba(34, 211, 238, 0.15)' }}>
-              <span className="text-2xl">🔗</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Network Connections</p>
-              <p className="text-xl font-bold text-gradient-cyan-purple">
-                {currentAccount!.network_connections?.nodes.length ?? 0} Nodes
-              </p>
-=======
         <div className="flex gap-3 mb-5">
           {currentAccount!.risk_score >= 800 ? (
             <button className="btn-primary flex-1 gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
@@ -131,7 +111,6 @@ function Dashboard() {
                   {currentAccount!.network_connections?.nodes.length ?? 0} Nodes
                 </p>
               </div>
->>>>>>> Stashed changes
             </div>
           </div>
           <div className="card card-hover">

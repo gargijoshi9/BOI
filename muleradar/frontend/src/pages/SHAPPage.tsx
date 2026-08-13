@@ -80,11 +80,10 @@ function SHAPPage() {
                   <button
                     key={acc.account_id}
                     onClick={() => handleAccountSelect(acc.account_id)}
-                    className={`w-full p-4 rounded-xl text-left transition-all border ${
-                      currentAccount?.account_id === acc.account_id
+                    className={`w-full p-4 rounded-xl text-left transition-all border ${currentAccount?.account_id === acc.account_id
                         ? 'bg-accent/5 border-accent/30'
                         : 'border-border/50 hover:bg-background-cardHover'
-                    }`}
+                      }`}
                     disabled={isEvaluating}
                   >
                     <div className="flex items-center justify-between">
