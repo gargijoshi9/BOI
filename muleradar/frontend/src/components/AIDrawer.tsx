@@ -13,6 +13,8 @@ const DEFAULT_WIDTH = 400
 const MIN_WIDTH = 300
 const MAX_WIDTH = 640
 
+<<<<<<< Updated upstream
+=======
 function getPointStyle(text: string) {
   const t = text.toLowerCase()
   if (t.includes('critical') || t.includes('high risk') || t.includes('fraud') || t.includes('scam') || t.includes('suspicious') || t.includes('flagged')) {
@@ -32,6 +34,8 @@ function getPointStyle(text: string) {
   }
   return { emoji: '💡', className: 'border-border hover:border-border-light hover:bg-background-card', textClass: 'text-foreground-muted' }
 }
+
+>>>>>>> Stashed changes
 function AIDrawer() {
   const { isOpen, closeDrawer, initialAccountId } = useDrawer()
   const [accountId, setAccountId] = useState('')
@@ -208,6 +212,14 @@ function AIDrawer() {
           </div>
         )}
         {!loading && !error && summary && (
+<<<<<<< Updated upstream
+          <p
+            className="whitespace-pre-line break-words text-sm"
+            style={{ color: '#cbd5e1', lineHeight: 1.7 }}
+          >
+            {summary}
+          </p>
+=======
           <div className="space-y-3">
             {(summary.split('\n').filter(p => p.trim().length > 0).length > 1
                 ? summary.split('\n')
@@ -230,6 +242,7 @@ function AIDrawer() {
                 )
               })}
           </div>
+>>>>>>> Stashed changes
         )}
         {!loading && !error && !summary && (
           <div className="glass p-8 text-center border border-border/50">
