@@ -5,12 +5,6 @@ interface KillChainWidgetProps {
   killChainStage?: KillChainStage
 }
 
-// 'None' is included deliberately - it's a real value analyzer.py sends
-// for Low-risk accounts with no active kill-chain stage. Previously this
-// wasn't in the stages array at all, which made indexOf() return -1 and
-// broke both the "Stage X of Y" counter and the active-pill color lookup.
-// Every value the backend can actually emit must have an explicit entry
-// here, even ones that represent "nothing is happening."
 const KILL_CHAIN_STAGES: KillChainStage[] = [
   'None',
   'Placement',
@@ -18,8 +12,6 @@ const KILL_CHAIN_STAGES: KillChainStage[] = [
   'Integration',
 ]
 
-// User-facing label per stage - 'None' reads oddly as a raw badge, so it
-// gets a clearer "Monitoring" label instead.
 const STAGE_LABELS: Record<KillChainStage, string> = {
   None: 'Monitoring',
   Placement: 'Placement',
@@ -28,82 +20,75 @@ const STAGE_LABELS: Record<KillChainStage, string> = {
 }
 
 const STAGE_COLORS: Record<KillChainStage, string> = {
-  // Muted gray-blue rather than a "warning" color - this state means no
-  // active kill-chain stage was detected, not a lower-severity alert.
-  None: '#cbd5e1',
+  None: '#8892a6',
   Placement: '#eab308',
   Layering: '#f97316',
   Integration: '#ef4444',
 }
 
+const STAGE_BADGE: Record<KillChainStage, string> = {
+  None: 'badge-teal',
+  Placement: 'badge-medium',
+  Layering: 'badge-high',
+  Integration: 'badge-critical',
+}
+
 const ACTION_COPY: Record<KillChainStage, string> = {
-  None: 'Continuous monitoring',
-  Placement: 'Immediate action required',
-  Layering: 'Immediate action required',
-  Integration: 'Immediate action required',
+  None: 'Continuous behavioral monitoring active',
+  Placement: 'Initial fund placement detected — investigate source',
+  Layering: 'Complex layering patterns — trace transaction flow',
+  Integration: 'Funds re-entering legitimate economy — urgent review',
 }
 
 function KillChainWidget({ killChainStage }: KillChainWidgetProps) {
   const active: KillChainStage = killChainStage ?? 'None'
   const rawIndex = KILL_CHAIN_STAGES.indexOf(active)
-  // Defensive fallback: if a stage value ever arrives that isn't in the
-  // array above (e.g. mid-rollout of a backend change), default to the
-  // first position instead of rendering "Stage 0 of 4" / negative math.
   const activeIndex = rawIndex === -1 ? 0 : rawIndex
   const activeColor = STAGE_COLORS[active] ?? STAGE_COLORS.None
+  const activeBadge = STAGE_BADGE[active] ?? STAGE_BADGE.None
 
   return (
     <WidgetShell>
-      <WidgetTitle>Kill Chain Stage</WidgetTitle>
-      <div className="mt-4 flex flex-row gap-2">
-        {KILL_CHAIN_STAGES.map((stage, i) => {
-          const isActive = stage === active
-          return (
-            <div key={stage} className="flex flex-1 items-center gap-1">
-              <div
-                className="flex h-9 flex-1 items-center justify-center px-2"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: `${activeColor}1F`, // ~0.12 alpha
-                        border: `1px solid ${activeColor}80`, // ~0.5 alpha
-                        color: activeColor,
-                        boxShadow: `0 0 16px ${activeColor}4D`, // ~0.3 alpha
-                      }
-                    : {
-                        color: '#334155',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        background: 'transparent',
-                      }
-                }
-              >
-                <span
-                  className="text-[11px] font-medium uppercase"
-                  style={{ letterSpacing: '0.12em' }}
-                >
-                  {STAGE_LABELS[stage]}
-                </span>
-              </div>
-              {/* Arrow separators between pills (skip after last). */}
-              {i < KILL_CHAIN_STAGES.length - 1 && (
-                <span
-                  className="select-none text-xs"
-                  style={{ color: '#1e293b' }}
-                >
-                  →
-                </span>
-              )}
-            </div>
-          )
-        })}
+      <div className="flex flex-col h-full">
+        <WidgetTitle>Kill Chain Stage</WidgetTitle>
+        <div className="mt-4 flex flex-1 items-center justify-center">
+          <div className="flex flex-row items-center gap-2 overflow-x-auto px-2 pb-2 -mx-2">
+            {KILL_CHAIN_STAGES.map((stage, i) => {
+              const isActive = stage === active
+              return (
+                <div key={stage} className="flex flex-col items-center gap-2 shrink-0">
+                  <div
+                    className={`relative px-4 py-3 rounded-xl text-caption font-semibold uppercase tracking-wider transition-all duration-300 min-w-[110px] text-center ${
+                      isActive
+                        ? `${activeBadge} shadow-glow-${isActive ? 'strong' : ''}`
+                        : 'text-foreground-muted bg-background-card border border-border'
+                    }`}
+                    style={isActive ? { boxShadow: `0 0 20px ${activeColor}40` } : undefined}
+                  >
+                    {STAGE_LABELS[stage]}
+                  </div>
+                  {i < KILL_CHAIN_STAGES.length - 1 && (
+                    <div className="flex items-center justify-center h-6 w-6 text-foreground-subtle">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div className="mt-4 p-4 rounded-xl bg-background-card border border-border/50">
+          <p className="text-body-sm font-medium text-foreground" style={{ color: activeColor }}>
+            Stage {activeIndex + 1} of {KILL_CHAIN_STAGES.length}
+          </p>
+          <p className="mt-1 text-body-sm text-foreground-muted">
+            {ACTION_COPY[active] ?? ACTION_COPY.None}
+          </p>
+        </div>
       </div>
-      <p
-        className="mt-6 text-xs"
-        style={{ color: activeColor }}
-      >
-        Stage {activeIndex + 1} of {KILL_CHAIN_STAGES.length} —{' '}
-        {ACTION_COPY[active] ?? ACTION_COPY.None}
-      </p>
     </WidgetShell>
   )
 }

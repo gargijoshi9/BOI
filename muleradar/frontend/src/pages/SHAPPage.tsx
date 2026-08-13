@@ -2,6 +2,7 @@ import { useState } from 'react'
 import PageShell from '../components/PageShell'
 import ShapWidget from '../components/ShapWidget'
 import { useApp } from '../context/AppContext'
+import { WidgetShell, WidgetTitle } from '../components/RiskScoreWidget'
 
 function SHAPPage() {
   const { currentAccount, evaluateAccount, isEvaluating, evaluationError, recentEvaluations } = useApp()
@@ -22,168 +23,166 @@ function SHAPPage() {
 
   return (
     <PageShell>
-      <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-6">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#f8fafc' }}>
-            SHAP Explainability
-          </h1>
-          <p className="mt-2 text-sm" style={{ color: '#94a3b8' }}>
-            Feature importance breakdown for the evaluated account
-          </p>
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-heading-xl font-bold text-foreground tracking-tight">
+              SHAP Explainability
+            </h1>
+            <p className="mt-1 text-body-md text-foreground-muted">
+              Feature importance breakdown for the evaluated account
+            </p>
+          </div>
+          <form onSubmit={handleManualEvaluate} className="flex flex-row items-center gap-3 w-full sm:w-auto">
+            <input
+              type="text"
+              value={manualAccountId}
+              onChange={(e) => setManualAccountId(e.target.value)}
+              placeholder="Enter Account ID..."
+              className="input-field w-64"
+            />
+            <button
+              type="submit"
+              disabled={isEvaluating}
+              className="btn-primary whitespace-nowrap"
+            >
+              {isEvaluating ? 'Loading...' : 'Evaluate'}
+            </button>
+          </form>
         </div>
 
-        {/* Account Selection + Manual Input */}
-        <div className="flex flex-row gap-5">
-          <div className="glass flex flex-1 flex-col p-5 min-w-[320px] max-w-[380px]">
-            <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-              Select Account
-            </h3>
-            
-            {/* Manual Account ID Input */}
-            <form onSubmit={handleManualEvaluate} className="flex flex-row gap-2 mb-4">
-              <input
-                type="text"
-                value={manualAccountId}
-                onChange={(e) => setManualAccountId(e.target.value)}
-                placeholder="Or enter Account ID..."
-                className="flex-1 px-3 py-2 text-sm focus:outline-none"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  color: '#f8fafc',
-                  borderRadius: '6px',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(34, 211, 238, 0.08)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              />
-              <button
-                type="submit"
-                disabled={isEvaluating}
-                className="px-4 py-2 text-sm font-medium uppercase tracking-wider rounded transition-all whitespace-nowrap"
-                style={{
-                  background: isEvaluating ? 'rgba(34, 211, 238, 0.05)' : 'rgba(34, 211, 238, 0.1)',
-                  border: isEvaluating ? '1px solid rgba(34, 211, 238, 0.2)' : '1px solid rgba(34, 211, 238, 0.4)',
-                  color: isEvaluating ? '#22d3ee80' : '#22d3ee',
-                  cursor: isEvaluating ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isEvaluating ? 'Loading...' : 'Evaluate'}
-              </button>
-            </form>
+        <div className="flex flex-row gap-5 lg:gap-6">
+          <div className="hidden lg:block w-[340px] flex-shrink-0">
+            <WidgetShell className="sticky top-24 h-[calc(100vh-8rem)] flex flex-col">
+              <WidgetTitle>Select Account</WidgetTitle>
 
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {recentEvaluations.map((acc) => (
+              <form onSubmit={handleManualEvaluate} className="mt-4 flex flex-row gap-2 mb-5">
+                <input
+                  type="text"
+                  value={manualAccountId}
+                  onChange={(e) => setManualAccountId(e.target.value)}
+                  placeholder="Or enter Account ID..."
+                  className="input-field flex-1"
+                />
                 <button
-                  key={acc.account_id}
-                  onClick={() => handleAccountSelect(acc.account_id)}
-                  className={`w-full text-left p-3 rounded transition-all ${
-                    currentAccount?.account_id === acc.account_id
-                      ? 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30'
-                      : 'border border-transparent hover:border-white/10 hover:bg-white/5'
-                  }`}
-                  style={{
-                    background: currentAccount?.account_id === acc.account_id
-                      ? 'rgba(34, 211, 238, 0.08)'
-                      : 'transparent',
-                  }}
+                  type="submit"
                   disabled={isEvaluating}
+                  className="btn-primary whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm" style={{ color: '#f8fafc' }}>
-                      {acc.account_id}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
-                        acc.is_simulated ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                      }`}
-                    >
-                      {acc.is_simulated ? 'Simulated' : 'Live'}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1" style={{ color: '#cbd5e1' }}>
-                      <span className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-                      Risk: {acc.risk_score}/1000
-                    </span>
-                    <span style={{ color: '#94a3b8' }}>{acc.kill_chain_stage}</span>
-                  </div>
+                  {isEvaluating ? 'Loading...' : 'Evaluate'}
                 </button>
-              ))}
-              {recentEvaluations.length === 0 && (
-                <p className="text-sm text-center py-8" style={{ color: '#94a3b8' }}>
-                  No recent evaluations yet. Evaluate an account from Dashboard or Accounts page.
-                </p>
-              )}
-            </div>
+              </form>
+
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {recentEvaluations.map((acc) => (
+                  <button
+                    key={acc.account_id}
+                    onClick={() => handleAccountSelect(acc.account_id)}
+                    className={`w-full p-4 rounded-xl text-left transition-all border ${
+                      currentAccount?.account_id === acc.account_id
+                        ? 'bg-accent/5 border-accent/30'
+                        : 'border-border/50 hover:bg-background-cardHover'
+                    }`}
+                    disabled={isEvaluating}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-body-md text-foreground">{acc.account_id}</span>
+                      <span className={`badge ${acc.is_simulated ? 'badge-high' : 'badge-teal'}`}>
+                        {acc.is_simulated ? 'Simulated' : 'Live'}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3 text-body-sm text-foreground-muted">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-risk-critical" />
+                        Risk: {acc.risk_score.toLocaleString()}/1000
+                      </span>
+                      <span>{acc.kill_chain_stage}</span>
+                    </div>
+                  </button>
+                ))}
+                {recentEvaluations.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-body-md text-foreground-muted">
+                      No recent evaluations yet. Evaluate an account from Dashboard or Accounts page.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </WidgetShell>
           </div>
 
           <div className="flex flex-1 flex-col min-w-0">
             {currentAccount ? (
               <>
-                <ShapWidget shapExplanation={shapFeatures} />
+                <WidgetShell className="mb-5">
+                  <ShapWidget shapExplanation={shapFeatures} />
+                </WidgetShell>
 
-                <div className="glass flex flex-col p-5 mt-5">
-                  <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-                    Account Context
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="block text-xs" style={{ color: '#94a3b8' }}>Risk Score</span>
-                      <span className="font-bold text-lg text-gradient-cyan-purple">{currentAccount.risk_score}</span>
+                <WidgetShell>
+                  <WidgetTitle>Account Context</WidgetTitle>
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-background-card border border-border/50">
+                      <span className="stat-label">Risk Score</span>
+                      <p className="mt-1 font-mono font-bold text-xl text-foreground">{currentAccount.risk_score.toLocaleString()}</p>
                     </div>
-                    <div>
-                      <span className="block text-xs" style={{ color: '#94a3b8' }}>Risk Level</span>
-                      <span className="font-bold text-lg" style={{ color: '#ef4444' }}>{currentAccount.risk_level}</span>
+                    <div className="p-4 rounded-xl bg-background-card border border-border/50">
+                      <span className="stat-label">Risk Level</span>
+                      <p className="mt-1 font-bold text-xl">
+                        <span className={`badge ${['Critical', 'High'].includes(currentAccount.risk_level) ? 'badge-critical' : ['Medium'].includes(currentAccount.risk_level) ? 'badge-medium' : 'badge-low'}`}>
+                          {currentAccount.risk_level}
+                        </span>
+                      </p>
                     </div>
-                    <div>
-                      <span className="block text-xs" style={{ color: '#94a3b8' }}>Kill Chain Stage</span>
-                      <span className="font-bold text-lg" style={{ color: '#f97316' }}>{currentAccount.kill_chain_stage}</span>
+                    <div className="p-4 rounded-xl bg-background-card border border-border/50">
+                      <span className="stat-label">Kill Chain Stage</span>
+                      <p className="mt-1 font-bold text-xl text-amber-500">{currentAccount.kill_chain_stage}</p>
                     </div>
-                    <div>
-                      <span className="block text-xs" style={{ color: '#94a3b8' }}>Mode</span>
-                      <span className="font-bold text-lg" style={{ color: currentAccount.is_simulated ? '#ef4444' : '#22c55e' }}>
-                        {currentAccount.is_simulated ? 'Simulated' : 'Live Model'}
-                      </span>
+                    <div className="p-4 rounded-xl bg-background-card border border-border/50">
+                      <span className="stat-label">Mode</span>
+                      <p className="mt-1 font-bold text-xl">
+                        <span className={`badge ${currentAccount.is_simulated ? 'badge-high' : 'badge-teal'}`}>
+                          {currentAccount.is_simulated ? 'Simulated' : 'Live Model'}
+                        </span>
+                      </p>
                     </div>
                   </div>
-                </div>
+                </WidgetShell>
               </>
             ) : (
-              <>
-                {/* Empty State - No account selected */}
-                <div className="glass flex flex-1 flex-col items-center justify-center p-12 text-center">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'rgba(34, 211, 238, 0.1)', border: '1px solid rgba(34, 211, 238, 0.3)' }}>
-                    <span className="text-2xl">📊</span>
-                  </div>
-                  <h3 className="text-lg font-bold mb-2" style={{ color: '#f8fafc' }}>Select an Account</h3>
-                  <p className="text-sm" style={{ color: '#94a3b8' }}>
-                    Choose an account from the list or enter an Account ID manually to view SHAP feature importance.
-                  </p>
+              <WidgetShell className="flex-1 flex flex-col items-center justify-center min-h-[500px]">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center bg-accent/10 border border-accent/20">
+                  <svg className="h-8 w-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 20V10" />
+                    <path d="M12 20V4" />
+                    <path d="M6 20v-6" />
+                  </svg>
                 </div>
-              </>
+                <h3 className="text-heading-lg font-bold text-foreground mb-3">Select an Account</h3>
+                <p className="text-body-md text-foreground-muted text-center max-w-md">
+                  Choose an account from the list or enter an Account ID manually to view SHAP feature importance.
+                </p>
+              </WidgetShell>
             )}
 
             {isEvaluating && (
-              <div className="glass flex items-center justify-center p-8 mt-5">
-                <p className="text-sm" style={{ color: '#22d3ee' }}>
-                  Loading SHAP explanation
-                  <span className="ellipsis-dot ml-1">.</span>
-                  <span className="ellipsis-dot">.</span>
-                  <span className="ellipsis-dot">.</span>
-                </p>
-              </div>
+              <WidgetShell className="mt-5">
+                <div className="glass flex items-center justify-center p-8 border border-accent/20">
+                  <p className="text-body-md text-accent flex items-center gap-1">
+                    Loading SHAP explanation
+                    <span className="ellipsis-dot">.</span>
+                    <span className="ellipsis-dot">.</span>
+                    <span className="ellipsis-dot">.</span>
+                  </p>
+                </div>
+              </WidgetShell>
             )}
 
             {evaluationError && (
-              <div className="glass flex items-center justify-center p-4 mt-5 border border-red-500/30 bg-red-500/5">
-                <p className="text-sm" style={{ color: '#ef4444' }}>{evaluationError}</p>
-              </div>
+              <WidgetShell className="mt-5">
+                <div className="glass p-4 border border-risk-critical/30 bg-risk-critical/5">
+                  <p className="text-body-sm text-risk-critical">{evaluationError}</p>
+                </div>
+              </WidgetShell>
             )}
           </div>
         </div>

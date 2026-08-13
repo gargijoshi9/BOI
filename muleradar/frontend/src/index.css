@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+<<<<<<< Updated upstream
 /* ---------- Webkit browsers (Chrome, Edge, Safari) ---------- */
 ::-webkit-scrollbar {
   width: 6px;
@@ -27,6 +28,8 @@
   scrollbar-color: #333333 #000000;
 }
 
+=======
+>>>>>>> Stashed changes
 @layer base {
   html,
   body,
@@ -35,111 +38,215 @@
   }
 
   body {
-    background-color: #000000;
-    color: #f8fafc;
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system,
-      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #0a1628;
+    color: #ffffff;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  * {
+    border-color: #1e3a5f;
+  }
+
+  ::selection {
+    background-color: rgba(0, 212, 170, 0.3);
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(30, 58, 95, 0.5);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(30, 58, 95, 0.8);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(30, 58, 95, 0.5) transparent;
+  }
 }
 
-/* ---------- Animated ellipsis for loading states ---------- */
-@keyframes ellipsis-blink {
-  0% { opacity: 0.2; }
-  20% { opacity: 1; }
-  100% { opacity: 0.2; }
-}
-.ellipsis-dot {
-  animation: ellipsis-blink 1.4s infinite;
-}
-.ellipsis-dot:nth-child(2) { animation-delay: 0.2s; }
-.ellipsis-dot:nth-child(3) { animation-delay: 0.4s; }
+@layer components {
+  .glass {
+    background: rgba(17, 34, 64, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(30, 58, 95, 0.5);
+  }
 
-/* ---------- Slide-in drawer transition ---------- */
-.drawer-slide {
-  transition: transform 300ms ease;
-}
+  .glass-strong {
+    background: rgba(17, 34, 64, 0.9);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(30, 58, 95, 0.8);
+  }
 
-/* ============================================================ */
-/* MuleRadar — Dark Fintech Theme                                 */
-/* ============================================================ */
+  .card {
+    @apply bg-background-card rounded-[16px] border border-border p-6 transition-all duration-300;
+  }
 
-/* Glassmorphism surface — used on every widget, sidebar, drawer,
-   filter buttons, search input, etc. */
-.glass {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
+  .card-hover {
+    @apply hover:bg-background-cardHover hover:border-border-light hover:shadow-card-hover;
+  }
 
-/* Cyan accent glow — paired with RiskScoreWidget. */
-.glow-cyan {
-  box-shadow:
-    0 0 20px rgba(34, 211, 238, 0.15),
-    0 0 60px rgba(34, 211, 238, 0.05);
-}
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-[10px] font-semibold text-sm tracking-wide
+    bg-accent text-navy-950 transition-all duration-250 hover:bg-accent-hover hover:shadow-glow-teal
+    active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
 
-/* Purple accent glow — paired with DamageForecastWidget. */
-.glow-purple {
-  box-shadow:
-    0 0 20px rgba(168, 85, 247, 0.15),
-    0 0 60px rgba(168, 85, 247, 0.05);
-}
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-[10px] font-semibold text-sm tracking-wide
+    bg-background-card border border-border text-foreground transition-all duration-250
+    hover:bg-background-cardHover hover:border-border-light hover:text-foreground
+    active:scale-[0.98];
+  }
 
-/* Cyan → purple text gradient — used on the headline risk score and
-   on the NetworkPage stat numbers. */
-.text-gradient-cyan-purple {
-  background: linear-gradient(135deg, #22d3ee, #a855f7);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[8px] font-medium text-sm
+    text-foreground-muted transition-all duration-200
+    hover:bg-background-card hover:text-foreground;
+  }
 
-/* ---------- LIVE badge dot pulse ---------- */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-.live-dot {
-  animation: live-pulse 2s ease-in-out infinite;
-}
+  .input-field {
+    @apply w-full px-4 py-3 rounded-[10px] bg-background-card border border-border text-foreground text-sm
+    placeholder:text-foreground-subtle transition-all duration-200
+    focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20
+    hover:border-border-light;
+  }
 
-/* ---------- SHAP bar width-on-mount ---------- */
-/* The bar starts at width 0 and animates to its target width when the
-   .shap-bar-animated class is applied via a short setTimeout after
-   first paint. */
-.shap-bar {
-  transition: width 800ms ease;
-}
-.shap-bar-initial {
-  width: 0 !important;
-}
+  .stat-number {
+    @apply font-mono font-bold text-display-md text-accent tracking-tight;
+  }
 
-/* ---------- AI drawer cyan edge glow ---------- */
-.ai-drawer-edge-glow {
-  box-shadow: -8px 0 32px rgba(34, 211, 238, 0.06);
-}
+  .stat-label {
+    @apply text-body-sm text-foreground-muted uppercase tracking-wider;
+  }
 
-/* ---------- Drag handle hover state ---------- */
-.drawer-drag-handle {
-  transition: background-color 150ms ease, box-shadow 150ms ease;
-}
-.drawer-drag-handle:hover {
-  background-color: rgba(34, 211, 238, 0.15);
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.2);
-}
+  .section-title {
+    @apply text-heading-xl font-bold text-foreground tracking-tight;
+  }
 
-/* 3D Perspective for Landing Page Cards */
-.perspective-1000 {
-  perspective: 1000px;
+  .section-subtitle {
+    @apply text-body-lg text-foreground-muted max-w-2xl;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-medium;
+  }
+
+  .badge-critical {
+    @apply bg-risk-critical/15 text-risk-critical border border-risk-critical/30;
+  }
+
+  .badge-high {
+    @apply bg-risk-high/15 text-risk-high border border-risk-high/30;
+  }
+
+  .badge-medium {
+    @apply bg-risk-medium/15 text-risk-medium border border-risk-medium/30;
+  }
+
+  .badge-low {
+    @apply bg-risk-low/15 text-risk-low border border-risk-low/30;
+  }
+
+  .badge-teal {
+    @apply bg-accent/15 text-accent border border-accent/30;
+  }
 }
 
-/* Slide-in animation for detail drawer */
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.4s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  .stagger-1 { animation-delay: 100ms; }
+  .stagger-2 { animation-delay: 200ms; }
+  .stagger-3 { animation-delay: 300ms; }
+  .stagger-4 { animation-delay: 400ms; }
+  .stagger-5 { animation-delay: 500ms; }
+  .stagger-6 { animation-delay: 600ms; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #ffffff 0%, #8892a6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gradient-text-accent {
+    background: linear-gradient(135deg, #00d4aa 0%, #00e8bb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .mesh-bg {
+    background: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 170, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 148, 120, 0.06) 0%, transparent 50%),
+      #0a1628;
+  }
+
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1;
+  }
 }

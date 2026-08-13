@@ -9,10 +9,33 @@ import {
 import { fetchAIAssistantSummary } from '../api/client'
 import { useDrawer } from '../context/DrawerContext'
 
-const DEFAULT_WIDTH = 380
-const MIN_WIDTH = 280
-const MAX_WIDTH = 600
+const DEFAULT_WIDTH = 400
+const MIN_WIDTH = 300
+const MAX_WIDTH = 640
 
+<<<<<<< Updated upstream
+=======
+function getPointStyle(text: string) {
+  const t = text.toLowerCase()
+  if (t.includes('critical') || t.includes('high risk') || t.includes('fraud') || t.includes('scam') || t.includes('suspicious') || t.includes('flagged')) {
+    return { emoji: '🚨', className: 'border-risk-critical/30 hover:border-risk-critical/50 hover:bg-risk-critical/10', textClass: 'text-risk-critical' }
+  }
+  if (t.includes('network') || t.includes('connection') || t.includes('ring') || t.includes('cluster') || t.includes('node') || t.includes('graph')) {
+    return { emoji: '🔗', className: 'border-accent/30 hover:border-accent/50 hover:bg-accent/10', textClass: 'text-accent' }
+  }
+  if (t.includes('transaction') || t.includes('money') || t.includes('amount') || t.includes('transfer') || t.includes('layering') || t.includes('exposure') || t.includes('fund')) {
+    return { emoji: '💸', className: 'border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10', textClass: 'text-purple-400' }
+  }
+  if (t.includes('safe') || t.includes('normal') || t.includes('low risk') || t.includes('clean') || t.includes('legitimate')) {
+    return { emoji: '✅', className: 'border-risk-low/30 hover:border-risk-low/50 hover:bg-risk-low/10', textClass: 'text-risk-low' }
+  }
+  if (t.includes('model') || t.includes('shap') || t.includes('feature') || t.includes('ai') || t.includes('score')) {
+    return { emoji: '🤖', className: 'border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/10', textClass: 'text-blue-400' }
+  }
+  return { emoji: '💡', className: 'border-border hover:border-border-light hover:bg-background-card', textClass: 'text-foreground-muted' }
+}
+
+>>>>>>> Stashed changes
 function AIDrawer() {
   const { isOpen, closeDrawer, initialAccountId } = useDrawer()
   const [accountId, setAccountId] = useState('')
@@ -22,10 +45,8 @@ function AIDrawer() {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
 
   const dragStartXRef = useRef(0)
-  const dragStartWidthRef = useRef(DEFAULT_WIDTH)
   const isDraggingRef = useRef(false)
 
-  // Auto-fetch summary when initialAccountId changes
   useEffect(() => {
     if (initialAccountId && initialAccountId !== accountId) {
       setAccountId(initialAccountId)
@@ -65,14 +86,12 @@ function AIDrawer() {
     e.preventDefault()
     isDraggingRef.current = true
     dragStartXRef.current = e.clientX
-    dragStartWidthRef.current = width
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup', stopDrag)
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'col-resize'
   }
 
-  // Clamp the width if the window resizes so the drawer never exceeds the viewport
   useEffect(() => {
     const onResize = () => {
       setWidth((w) => Math.min(w, MAX_WIDTH))
@@ -81,7 +100,6 @@ function AIDrawer() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  // Cleanup listeners on unmount
   useEffect(() => {
     return () => {
       window.removeEventListener('pointermove', handlePointerMove)
@@ -106,123 +124,72 @@ function AIDrawer() {
     }
   }
 
-  // When the drawer is closed, its width animates to 0. Re-opening uses the
-  // last set width (set by drag or by default).
   const visualWidth = isOpen ? width : 0
 
   return (
     <aside
       aria-hidden={!isOpen}
-      className="relative flex h-full flex-col ai-drawer-edge-glow drawer-slide"
+      className="relative flex h-full flex-col drawer-slide"
       style={{
         width: `${visualWidth}px`,
         minWidth: `${visualWidth}px`,
         opacity: isOpen ? 1 : 0,
         overflow: 'hidden',
         pointerEvents: isOpen ? 'auto' : 'none',
-        background: 'rgba(2, 2, 12, 0.95)',
+        background: 'rgba(10, 22, 40, 0.98)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
-        borderLeft: '1px solid rgba(34, 211, 238, 0.15)',
+        borderLeft: '1px solid rgba(30, 58, 95, 0.8)',
+        boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.4)',
       }}
     >
-      {/* Drag handle — 6px strip on the left edge. Hover state is
-          handled via .drawer-drag-handle in index.css (cyan tint +
-          subtle glow on hover, cursor stays col-resize). */}
       <div
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize AI Assistant"
         onPointerDown={startDrag}
-        className="drawer-drag-handle absolute left-0 top-0 z-10 flex h-full w-[6px] cursor-col-resize flex-col items-center justify-center"
+        className="absolute left-0 top-0 z-10 flex h-full w-[6px] cursor-col-resize flex-col items-center justify-center"
         style={{ touchAction: 'none' }}
       >
         <span className="pointer-events-none flex flex-col gap-1">
-          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
-          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
-          <span className="block h-[2px] w-[2px] rounded-full bg-[#cbd5e1]" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
+          <span className="block h-[2px] w-[2px] rounded-full bg-foreground-muted" />
         </span>
       </div>
 
-      <div
-        className="flex items-center justify-between px-6 py-5"
-        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
-      >
-        <h2
-          className="text-lg"
-          style={{ color: '#22d3ee', fontWeight: 700 }}
-        >
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+        <h2 className="text-heading-sm font-semibold text-accent">
           AI Assistant
         </h2>
         <button
           type="button"
           onClick={closeDrawer}
           aria-label="Close AI Assistant"
-          className="text-xl font-medium"
-          style={{
-            color: '#cbd5e1',
-            transition: 'color 150ms ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#f8fafc'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#cbd5e1'
-          }}
+          className="p-1 rounded-lg text-foreground-muted hover:text-foreground hover:bg-background-card transition-colors"
         >
-          ✕
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18" />
+            <path d="M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="flex w-full flex-row items-stretch"
-        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
+        className="flex w-full flex-row items-stretch gap-2 p-4 border-b border-border/50"
       >
         <input
           type="text"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           placeholder="Enter Account ID..."
-          className="flex-1 px-4 py-3 text-sm focus:outline-none"
-          style={{
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            color: '#f8fafc',
-            transition: 'border-color 200ms ease, box-shadow 200ms ease',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)'
-            e.currentTarget.style.boxShadow =
-              '0 0 0 3px rgba(34, 211, 238, 0.08)'
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
-            e.currentTarget.style.boxShadow = 'none'
-          }}
+          className="input-field flex-1"
         />
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-3 text-sm font-medium uppercase tracking-wider"
-          style={{
-            background: loading ? 'rgba(34, 211, 238, 0.05)' : 'rgba(34, 211, 238, 0.1)',
-            border: loading ? '1px solid rgba(34, 211, 238, 0.2)' : '1px solid rgba(34, 211, 238, 0.4)',
-            color: loading ? '#22d3ee80' : '#22d3ee',
-            transition: 'all 200ms ease',
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (loading) return
-            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.2)'
-            e.currentTarget.style.boxShadow =
-              '0 0 20px rgba(34, 211, 238, 0.2)'
-          }}
-          onMouseLeave={(e) => {
-            if (loading) return
-            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.1)'
-            e.currentTarget.style.boxShadow = 'none'
-          }}
+          className="btn-primary whitespace-nowrap"
         >
           {loading ? 'Generating...' : 'Summarize'}
         </button>
@@ -230,33 +197,66 @@ function AIDrawer() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {loading && (
-          <p
-            className="flex items-center gap-1 text-sm"
-            style={{ color: '#22d3ee' }}
-          >
-            Generating summary
-            <span className="ellipsis-dot">.</span>
-            <span className="ellipsis-dot">.</span>
-            <span className="ellipsis-dot">.</span>
-          </p>
+          <div className="glass flex items-center justify-center p-8 border border-accent/20">
+            <p className="text-body-sm text-accent flex items-center gap-1">
+              Generating summary
+              <span className="ellipsis-dot">.</span>
+              <span className="ellipsis-dot">.</span>
+              <span className="ellipsis-dot">.</span>
+            </p>
+          </div>
         )}
         {error && !loading && (
-          <p className="text-sm" style={{ color: '#ef4444' }}>
-            {error}
-          </p>
+          <div className="glass p-4 border border-risk-critical/30 bg-risk-critical/5">
+            <p className="text-body-sm text-risk-critical">{error}</p>
+          </div>
         )}
         {!loading && !error && summary && (
+<<<<<<< Updated upstream
           <p
             className="whitespace-pre-line break-words text-sm"
             style={{ color: '#cbd5e1', lineHeight: 1.7 }}
           >
             {summary}
           </p>
+=======
+          <div className="space-y-3">
+            {(summary.split('\n').filter(p => p.trim().length > 0).length > 1
+                ? summary.split('\n')
+                : summary.split(/(?<=\.)\s+/))
+              .map(p => p.trim().replace(/^[-*•]\s*/, ''))
+              .filter(p => p.length > 0)
+              .map((point, idx) => {
+                const style = getPointStyle(point)
+                return (
+                  <div key={idx} className={`glass p-4 rounded-xl border transition-all ${style.className}`}>
+                    <div className="flex gap-3 items-start">
+                      <div className="mt-0.5 flex-shrink-0 text-base">
+                        {style.emoji}
+                      </div>
+                      <p className="text-body-sm text-foreground leading-relaxed m-0">
+                        {point}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+>>>>>>> Stashed changes
         )}
         {!loading && !error && !summary && (
-          <p className="text-sm" style={{ color: '#cbd5e1' }}>
-            Enter an account ID to generate an AI summary.
-          </p>
+          <div className="glass p-8 text-center border border-border/50">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center bg-accent/10">
+              <svg className="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <h3 className="text-heading-sm font-semibold text-foreground mb-2">Ready to Analyze</h3>
+            <p className="text-body-sm text-foreground-muted">Enter an account ID to generate an AI-powered fraud investigation summary.</p>
+          </div>
         )}
       </div>
     </aside>
