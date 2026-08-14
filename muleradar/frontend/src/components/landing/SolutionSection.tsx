@@ -57,7 +57,7 @@ export default function SolutionSection() {
                 </div>
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">Hybrid ML Engine (Supervised + Unsupervised)</span>
-                  <span className="px-2 py-1 bg-red-500/20 border border-red-500/50 text-red-400 text-xs font-bold rounded animate-pulse shadow-glow-red">91 RISK SCORE</span>
+                  <span className="px-2 py-1 bg-red-500/20 border border-red-500/50 text-red-400 text-xs font-bold rounded animate-pulse shadow-glow-red">RISK SCORE</span>
                 </div>
               </div>
             </div>

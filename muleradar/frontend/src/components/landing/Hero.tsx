@@ -1,13 +1,11 @@
 import { Link } from 'react-router-dom'
 
-const STATS = [
-  { value: '10B+', label: 'Transactions Analyzed' },
-  { value: '<500ms', label: 'Risk Assessment Latency' },
-  { value: '99.2%', label: 'Detection Accuracy' },
-  { value: '500M+', label: 'Accounts Protected' },
+const KILL_CHAIN_STEPS = [
+  { id: '01', title: 'Infiltration', desc: 'Synthetic ID / ATO' },
+  { id: '02', title: 'Dormancy', desc: 'Aging to build trust' },
+  { id: '03', title: 'Layering', desc: 'Receiving illicit funds' },
+  { id: '04', title: 'Cash Out', desc: 'Moving to crypto/offshore' },
 ] as const
-
-
 
 function Hero() {
   return (
@@ -45,15 +43,36 @@ function Hero() {
             </a>
           </div>
 
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 animate-slide-up stagger-4">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="stat-number">{stat.value}</div>
-                <div className="mt-1 stat-label">{stat.label}</div>
+          <div className="mt-20 w-full max-w-5xl mx-auto relative animate-slide-up stagger-4">
+            <p className="text-sm font-medium text-foreground-muted uppercase tracking-widest mb-8 text-center">
+              Intercepting the Mule Fraud Kill Chain
+            </p>
+            <div className="relative">
+              {/* Connecting Line */}
+              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/10 -translate-y-1/2 hidden md:block"></div>
+              <div className="absolute top-1/2 left-0 w-[60%] h-0.5 bg-gradient-to-r from-accent to-transparent -translate-y-1/2 hidden md:block"></div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {KILL_CHAIN_STEPS.map((step, index) => (
+                  <div key={step.id} className="relative group h-full">
+                    <div className="relative z-10 flex flex-col items-center bg-background p-4 rounded-xl border border-white/5 shadow-xl transition-transform hover:-translate-y-1 h-full">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-4 border ${index < 2 ? 'border-accent/50 text-accent bg-accent/10 shadow-[0_0_15px_rgba(0,255,170,0.3)]' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}>
+                        {step.id}
+                      </div>
+                      <h3 className="text-foreground font-semibold text-lg">{step.title}</h3>
+                      <p className="text-foreground-muted text-sm text-center mt-1">{step.desc}</p>
+                      
+                      {index === 1 && (
+                        <div className="absolute -top-3 -right-3 bg-accent text-background text-[10px] font-bold px-2 py-1 rounded-full animate-bounce shadow-[0_0_10px_rgba(0,255,170,0.8)]">
+                          INTERCEPTED
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-
 
         </div>
       </div>
