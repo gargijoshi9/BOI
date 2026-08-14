@@ -51,14 +51,14 @@ function KillChainWidget({ killChainStage }: KillChainWidgetProps) {
     <WidgetShell>
       <div className="flex flex-col h-full">
         <WidgetTitle>Kill Chain Stage</WidgetTitle>
-        <div className="mt-4 flex flex-1 items-center justify-center">
-          <div className="flex flex-row items-center gap-2 overflow-x-auto px-2 pb-2 -mx-2">
+        <div className="mt-4 flex w-full">
+          <div className="flex flex-row items-center justify-between gap-1 sm:gap-2 w-full">
             {KILL_CHAIN_STAGES.map((stage, i) => {
               const isActive = stage === active
               return (
-                <div key={stage} className="flex flex-col items-center gap-2 shrink-0">
+                <div key={stage} className="flex flex-row flex-1 items-center justify-center min-w-0">
                   <div
-                    className={`relative px-4 py-3 rounded-xl text-caption font-semibold uppercase tracking-wider transition-all duration-300 min-w-[110px] text-center ${
+                    className={`w-full relative px-1 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-300 text-center truncate ${
                       isActive
                         ? `${activeBadge} shadow-glow-${isActive ? 'strong' : ''}`
                         : 'text-foreground-muted bg-background-card border border-border'
@@ -67,14 +67,6 @@ function KillChainWidget({ killChainStage }: KillChainWidgetProps) {
                   >
                     {STAGE_LABELS[stage]}
                   </div>
-                  {i < KILL_CHAIN_STAGES.length - 1 && (
-                    <div className="flex items-center justify-center h-6 w-6 text-foreground-subtle">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
-                      </svg>
-                    </div>
-                  )}
                 </div>
               )
             })}

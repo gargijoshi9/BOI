@@ -41,36 +41,64 @@ const NAV_ITEMS = [
   },
 ] as const
 
-function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
 
   return (
-    <aside
-      className="hidden lg:flex h-full w-[260px] flex-col bg-background-card/80 backdrop-blur-2xl border-r border-border/50"
-    >
-      <Link
-        to="/dashboard"
-        className="flex h-16 items-center gap-3 px-6 border-b border-border/50 text-decoration-none"
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 transform ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out flex h-full w-[260px] flex-col bg-background-card/95 lg:bg-background-card/80 backdrop-blur-2xl border-r border-border/50`}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-teal-500">
+      <div className="flex items-center justify-between px-6 h-16 border-b border-border/50">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-3 text-decoration-none"
+          onClick={onClose}
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-teal-500">
           <svg className="h-5 w-5 text-navy-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <span className="font-bold text-heading-md text-foreground tracking-tight">
-          MuleRadar
-        </span>
-      </Link>
+          <span className="font-bold text-heading-md text-foreground tracking-tight">
+            MuleRadar
+          </span>
+        </Link>
+        <button 
+          className="lg:hidden p-2 -mr-2 text-foreground-muted hover:text-foreground"
+          onClick={onClose}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-      <nav className="flex flex-1 flex-col px-4 py-6 space-y-1">
+      <nav className="flex flex-1 flex-col px-4 py-6 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.to
           return (
             <Link
               key={item.to}
               to={item.to}
+              onClick={onClose}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-body-sm font-medium transition-all duration-200 ${isActive
                   ? 'bg-accent/10 text-accent border border-accent/20 shadow-glow-teal'
                   : 'text-foreground-muted hover:bg-background-card hover:text-foreground hover:border-border/50'
@@ -85,6 +113,7 @@ function Sidebar() {
         <div className="mt-auto pt-6 border-t border-border/50">
           <Link
             to="/"
+            onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-body-sm font-medium text-foreground-muted hover:bg-background-card hover:text-foreground hover:border-border/50 transition-all duration-200 border"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -96,6 +125,7 @@ function Sidebar() {
         </div>
       </nav>
     </aside>
+    </>
   )
 }
 

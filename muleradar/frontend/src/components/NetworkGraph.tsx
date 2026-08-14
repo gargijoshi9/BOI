@@ -353,7 +353,7 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
   }
 
   return (
-    <div ref={containerRef} className="glass flex w-full flex-col p-7">
+    <div ref={containerRef} className="flex w-full flex-col h-full">
       <h3
         className="text-xs font-medium uppercase"
         style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}
@@ -367,7 +367,7 @@ function NetworkGraph({ networkConnections, centralAccountId, height = 320 }: Ne
         preserveAspectRatio="none"
       />
       <div
-        className="mt-4 flex flex-row items-center gap-6 text-xs"
+        className="mt-4 flex flex-row flex-wrap items-center gap-4 sm:gap-6 text-xs"
         style={{ color: '#94a3b8' }}
       >
         <span className="flex flex-row items-center gap-2">

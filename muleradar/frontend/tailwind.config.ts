@@ -109,6 +109,7 @@ const config: Config = {
         'card-hover': '0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3)',
         'glow-teal': '0 0 30px rgba(0, 212, 170, 0.15), 0 0 60px rgba(0, 212, 170, 0.05)',
         'glow-teal-strong': '0 0 40px rgba(0, 212, 170, 0.25), 0 0 80px rgba(0, 212, 170, 0.1)',
+        'glow-red': '0 0 30px rgba(239, 68, 68, 0.3), 0 0 60px rgba(239, 68, 68, 0.15)',
         'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
       },
       borderRadius: {

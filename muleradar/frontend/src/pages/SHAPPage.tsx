@@ -53,29 +53,12 @@ function SHAPPage() {
           </form>
         </div>
 
-        <div className="flex flex-row gap-5 lg:gap-6">
-          <div className="hidden lg:block w-[340px] flex-shrink-0">
-            <WidgetShell className="sticky top-24 h-[calc(100vh-8rem)] flex flex-col">
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6">
+          <div className="w-full lg:w-[340px] flex-shrink-0">
+            <WidgetShell className="lg:sticky lg:top-24 max-h-[400px] lg:h-[calc(100vh-8rem)] flex flex-col">
               <WidgetTitle>Select Account</WidgetTitle>
 
-              <form onSubmit={handleManualEvaluate} className="mt-4 flex flex-row gap-2 mb-5">
-                <input
-                  type="text"
-                  value={manualAccountId}
-                  onChange={(e) => setManualAccountId(e.target.value)}
-                  placeholder="Or enter Account ID..."
-                  className="input-field flex-1"
-                />
-                <button
-                  type="submit"
-                  disabled={isEvaluating}
-                  className="btn-primary whitespace-nowrap"
-                >
-                  {isEvaluating ? 'Loading...' : 'Evaluate'}
-                </button>
-              </form>
-
-              <div className="flex-1 overflow-y-auto space-y-2">
+              <div className="mt-4 flex-1 overflow-y-auto space-y-2">
                 {recentEvaluations.map((acc) => (
                   <button
                     key={acc.account_id}
@@ -121,14 +104,8 @@ function SHAPPage() {
                 </WidgetShell>
 
                 <WidgetShell>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <WidgetTitle>Account Context</WidgetTitle>
-                    <button
-                      onClick={() => setIsReportOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all border border-accent/50 text-accent hover:bg-accent/10 shadow-lg hover:scale-105"
-                    >
-                      <span>📄</span> Generate Investigation Report
-                    </button>
                   </div>
                   <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-background-card border border-border/50">
@@ -157,6 +134,15 @@ function SHAPPage() {
                     </div>
                   </div>
                 </WidgetShell>
+
+                <div className="mt-6 flex justify-center sm:justify-end">
+                  <button
+                    onClick={() => setIsReportOpen(true)}
+                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-lg transition-all border border-accent/50 text-accent hover:bg-accent/10 shadow-lg hover:scale-105 w-full sm:w-auto justify-center"
+                  >
+                    <span>📄</span> Generate Investigation Report
+                  </button>
+                </div>
 
                 {/* PDF Investigation Report Modal */}
                 <InvestigationReportModal

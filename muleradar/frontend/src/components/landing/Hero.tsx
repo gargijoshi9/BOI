@@ -7,13 +7,7 @@ const STATS = [
   { value: '500M+', label: 'Accounts Protected' },
 ] as const
 
-const TRUST_LOGOS = [
-  { name: 'Reserve Bank of India', className: '' },
-  { name: 'State Bank of India', className: '' },
-  { name: 'HDFC Bank', className: '' },
-  { name: 'ICICI Bank', className: '' },
-  { name: 'Axis Bank', className: '' },
-] as const
+
 
 function Hero() {
   return (
@@ -60,18 +54,7 @@ function Hero() {
             ))}
           </div>
 
-          <div className="mt-16 pt-10 border-t border-border/50 animate-slide-up stagger-5">
-            <p className="text-caption text-foreground-subtle uppercase tracking-wider mb-6 text-center">
-              Trusted by Leading Financial Institutions
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-40 hover:opacity-60 transition-opacity duration-300">
-              {TRUST_LOGOS.map((logo) => (
-                <span key={logo.name} className="text-body-sm font-medium text-foreground-muted">
-                  {logo.name}
-                </span>
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
 

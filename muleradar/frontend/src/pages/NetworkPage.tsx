@@ -47,18 +47,18 @@ function NetworkPage() {
               Live fraud ring visualization & network analysis
             </p>
           </div>
-          <form onSubmit={handleManualEvaluate} className="flex flex-row items-center gap-3 w-full sm:w-auto">
+          <form onSubmit={handleManualEvaluate} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <input
               type="text"
               value={manualAccountId}
               onChange={(e) => setManualAccountId(e.target.value)}
               placeholder="Enter Account ID..."
-              className="input-field w-64"
+              className="input-field w-full sm:w-64"
             />
             <button
               type="submit"
               disabled={isEvaluating}
-              className="btn-primary whitespace-nowrap"
+              className="btn-primary whitespace-nowrap justify-center"
             >
               {isEvaluating ? 'Loading...' : 'Analyze'}
             </button>
@@ -77,7 +77,7 @@ function NetworkPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="lg:col-span-2">
-                <WidgetShell className="h-[560px] min-h-[560px]">
+                <WidgetShell className="h-full min-h-[560px]">
                   <NetworkGraph
                     networkConnections={currentAccount.network_connections}
                     centralAccountId={currentAccount.account_id}

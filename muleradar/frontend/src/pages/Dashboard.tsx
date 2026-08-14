@@ -65,17 +65,19 @@ function Dashboard() {
 
     return (
       <>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
           <RiskScoreWidget
             riskScore={currentAccount!.risk_score}
             riskLevel={currentAccount!.risk_level}
             isSimulated={currentAccount!.is_simulated}
           />
           <DamageForecastWidget damageMetrics={currentAccount!.damage_metrics} />
+        </div>
+        <div className="mb-5">
           <KillChainWidget killChainStage={currentAccount!.kill_chain_stage} />
         </div>
 
-        <div className="flex gap-3 mb-5">
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
           {currentAccount!.risk_score >= 800 ? (
             <button className="btn-primary flex-1 gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -267,7 +269,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-row items-stretch gap-3 max-w-3xl">
+        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch gap-3 max-w-3xl">
           <input
             type="text"
             value={accountInput}

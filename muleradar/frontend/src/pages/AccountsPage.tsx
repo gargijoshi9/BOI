@@ -23,7 +23,7 @@ const RISK_GLOWS: Record<RiskLevel, string> = {
 }
 
 function AccountsPage() {
-  const { currentAccount, evaluateAccount, recentEvaluations } = useApp()
+  const { currentAccount, evaluateAccount } = useApp()
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<{ key: keyof RiskEvaluationResponse; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
@@ -264,8 +264,9 @@ function AccountsPage() {
               <p className="text-sm" style={{ color: '#94a3b8' }}>No accounts match your filters</p>
             </div>
           ) : (
-            <>
-              <div className="flex flex-row items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
+            <div className="flex-1 flex flex-col overflow-x-auto">
+              <div className="min-w-[800px] flex flex-col h-full">
+                <div className="flex flex-row items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
                 <div className="flex flex-row items-center gap-2 text-xs" style={{ color: '#94a3b8', letterSpacing: '0.18em' }}>
                   <span className="flex-1 min-w-[140px]" onClick={() => handleSort('account_id')} style={{ cursor: 'pointer' }}>
                     Account ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -359,74 +360,28 @@ function AccountsPage() {
                   </tbody>
                 </table>
               </div>
-            </>
+            </div>
+            </div>
           )}
         </div>
-
-        {/* Recent Evaluations Quick Access */}
-        {recentEvaluations.length > 0 && (
-          <div className="glass flex flex-col p-5">
-            <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-              Recent Evaluations
-            </h3>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto">
-              {recentEvaluations.map((acc) => (
-                <button
-                  key={acc.account_id}
-                  onClick={() => handleRowClick({ 
-                    account_id: acc.account_id, 
-                    risk_score: acc.risk_score, 
-                    risk_level: acc.risk_level as RiskLevel, 
-                    kill_chain_stage: acc.kill_chain_stage as any, 
-                    damage_metrics: { recoverable_amount: 0, in_transit_amount: 0, is_estimated: true }, 
-                    is_simulated: acc.is_simulated,
-                    shap_explanation: [],
-                    network_connections: { nodes: [], edges: [] }
-                  })}
-                  className="block w-full p-3 rounded-lg transition-all hover:bg-white/5 border text-left"
-                  style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}
-                >
-                  <div className="flex flex-row items-center justify-between">
-                    <span className="font-mono text-sm" style={{ color: '#f8fafc' }}>
-                      {acc.account_id}
-                      {acc.is_simulated && (
-                        <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-red-500/20 text-red-400">
-                          Sim
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded"
-                      style={{
-                        background: `${acc.risk_level === 'Critical' ? '#ef4444' : acc.risk_level === 'High' ? '#f97316' : acc.risk_level === 'Medium' ? '#eab308' : '#22c55e'}33`,
-                        color: acc.risk_level === 'Critical' ? '#ef4444' : acc.risk_level === 'High' ? '#f97316' : acc.risk_level === 'Medium' ? '#eab308' : '#22c55e',
-                      }}
-                    >
-                      {acc.risk_level}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-row items-center gap-3 text-xs" style={{ color: '#94a3b8' }}>
-                    <span>Score: <span className="font-bold" style={{ color: '#f8fafc' }}>{acc.risk_score}</span></span>
-                    <span>{acc.kill_chain_stage}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Detail Drawer */}
       {showDetail && currentAccount && (
         <div
           className="fixed inset-0 z-50 flex flex-row justify-end"
-          onClick={() => setShowDetail(false)}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
         >
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDetail(false)} />
+          {/* Backdrop */}
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowDetail(false)} />
+
+          {/* Drawer Panel */}
           <div
-            className="relative flex flex-col w-full max-w-md h-full bg-black/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'slideIn 300ms ease' }}
+            className="relative w-full max-w-[500px] h-full shadow-2xl flex flex-col animate-slide-left border-l"
+            style={{
+              backgroundColor: '#0a1128',
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+            }}
           >
             <div className="flex flex-row items-center justify-between p-5 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
               <h2 className="text-lg font-bold" style={{ color: '#22d3ee' }}>Account Detail</h2>
