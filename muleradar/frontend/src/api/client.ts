@@ -139,3 +139,72 @@ export async function fetchAccounts(
   })
   return data
 }
+
+// ---------- New endpoints: paginated accounts, actions, auth, metrics ----------
+
+export interface PaginatedAccountsResponse {
+  total: number
+  page: number
+  page_size: number
+  results: RiskEvaluationResponse[]
+}
+
+export async function fetchPaginatedAccounts(params: {
+  search?: string
+  risk_level?: string
+  min_score?: number
+  max_score?: number
+  flagged_only?: boolean
+  sort_by?: string
+  sort_dir?: string
+  page?: number
+  page_size?: number
+}): Promise<PaginatedAccountsResponse> {
+  const { data } = await api.get<PaginatedAccountsResponse>('/api/v1/accounts', { params })
+  return data
+}
+
+export interface MetricsResponse {
+  total_accounts: number
+  flagged_count: number
+  flagged_pct: number
+  score_buckets: Record<string, number>
+  engine_status: string
+  model_info: {
+    models: string[]
+    feature_selection: string
+    train_test_split: string
+    labels: string
+  }
+}
+
+export async function fetchMetrics(): Promise<MetricsResponse> {
+  const { data } = await api.get<MetricsResponse>('/api/v1/metrics')
+  return data
+}
+
+export async function takeAction(accountId: string, action: string, note: string = ''): Promise<any> {
+  const token = localStorage.getItem('muleradar_token')
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { data } = await api.post(`/api/v1/accounts/${accountId}/action`, { action, note }, { headers })
+  return data
+}
+
+export interface LoginResponseData {
+  token: string
+  username: string
+  display_name: string
+  role: string
+}
+
+export async function loginUser(username: string, password: string): Promise<LoginResponseData> {
+  const { data } = await api.post<LoginResponseData>('/api/v1/auth/login', { username, password })
+  return data
+}
+
+export async function fetchAuditTrail(accountId?: string): Promise<any[]> {
+  const params = accountId ? { account_id: accountId } : {}
+  const { data } = await api.get<any[]>('/api/v1/audit-trail', { params })
+  return data
+}
