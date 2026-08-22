@@ -32,32 +32,6 @@ function AccountsPage() {
   const [error, setError] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
-
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-  const handleAction = async (action: string) => {
-    if (!currentAccount) return
-    setActionMessage(null)
-    try {
-      const token = localStorage.getItem('muleradar_token')
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${API}/api/v1/accounts/${currentAccount.account_id}/action`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ action, note: '' }),
-      })
-      if (res.ok) {
-        setActionMessage(`✅ ${action.toUpperCase()} recorded for account ${currentAccount.account_id}`)
-      } else {
-        setActionMessage(`⚠️ Action failed — try logging in first`)
-      }
-    } catch {
-      setActionMessage(`⚠️ Connection error`)
-    }
-    setTimeout(() => setActionMessage(null), 4000)
-  }
 
   useEffect(() => {
     async function loadAccounts() {
@@ -563,34 +537,22 @@ function AccountsPage() {
                 </div>
               )}
 
-              {/* Compliance Actions */}
-              <div className="flex flex-col gap-2 pt-3 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-                <p className="text-xs uppercase tracking-wider text-slate-400 mb-1">Compliance Actions</p>
-                <div className="flex flex-row gap-2">
-                  <button
-                    onClick={() => handleAction('freeze')}
-                    className="flex-1 py-2.5 text-sm font-medium uppercase tracking-wider rounded-lg transition-all bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20"
-                  >
-                    🔒 Freeze
-                  </button>
-                  <button
-                    onClick={() => handleAction('escalate')}
-                    className="flex-1 py-2.5 text-sm font-medium uppercase tracking-wider rounded-lg transition-all bg-orange-500/10 border border-orange-500/40 text-orange-400 hover:bg-orange-500/20"
-                  >
-                    ⬆️ Escalate
-                  </button>
-                  <button
-                    onClick={() => handleAction('dismiss')}
-                    className="flex-1 py-2.5 text-sm font-medium uppercase tracking-wider rounded-lg transition-all bg-slate-500/10 border border-slate-500/40 text-slate-400 hover:bg-slate-500/20"
-                  >
-                    ✅ Dismiss
-                  </button>
-                </div>
-                {actionMessage && (
-                  <p className="text-xs text-center mt-1" style={{ color: actionMessage.includes('✅') ? '#4ade80' : '#f97316' }}>
-                    {actionMessage}
-                  </p>
-                )}
+              {/* Actions */}
+              <div className="flex flex-row gap-3 pt-3 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
+                <button className="flex-1 py-3 text-sm font-medium uppercase tracking-wider rounded-lg transition-all" style={{
+                  background: 'rgba(34, 211, 238, 0.1)',
+                  border: '1px solid rgba(34, 211, 238, 0.4)',
+                  color: '#22d3ee',
+                }}>
+                  Re-evaluate
+                </button>
+                <button className="flex-1 py-3 text-sm font-medium uppercase tracking-wider rounded-lg transition-all" style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  color: '#cbd5e1',
+                }}>
+                  AI Summary
+                </button>
               </div>
             </div>
           </div>
