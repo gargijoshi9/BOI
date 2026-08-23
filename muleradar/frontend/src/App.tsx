@@ -7,6 +7,7 @@ import { DrawerProvider } from './context/DrawerContext'
 import { AppProvider } from './context/AppContext'
 
 import LandingPage from './pages/LandingPage'
+import { ReviewQueuePage } from './pages/ReviewQueuePage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/shap" element={<SHAPPage />} />
             <Route path="/network" element={<NetworkPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/review-queue" element={<ReviewQueuePage />} />
           </Routes>
         </div>
       </AppProvider>

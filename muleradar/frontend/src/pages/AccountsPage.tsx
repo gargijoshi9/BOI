@@ -4,6 +4,15 @@ import { RiskLevel, fetchAccounts, RiskEvaluationResponse } from '../api/client'
 import { formatINR } from '../components/DamageForecastWidget'
 import { useApp } from '../context/AppContext'
 
+// Extend the response type locally to accommodate the new backend fields
+type ExtendedAccount = RiskEvaluationResponse & {
+  account_type?: string;
+  occupation?: string;
+  age?: number;
+  anomaly_score?: number;
+  model_probability?: number;
+}
+
 type RiskFilter = 'ALL' | RiskLevel
 
 const FILTERS: RiskFilter[] = ['ALL', 'Critical', 'High', 'Medium', 'Low']
@@ -26,8 +35,9 @@ function AccountsPage() {
   const { currentAccount, evaluateAccount } = useApp()
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortConfig, setSortConfig] = useState<{ key: keyof RiskEvaluationResponse; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
-  const [accounts, setAccounts] = useState<RiskEvaluationResponse[]>([])
+  const [hideInSample, setHideInSample] = useState(true) // Default to honest hold-out view
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ExtendedAccount; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
+  const [accounts, setAccounts] = useState<ExtendedAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState(false)
@@ -37,8 +47,9 @@ function AccountsPage() {
     async function loadAccounts() {
       try {
         setLoading(true)
-        const data = await fetchAccounts(200)
-        setAccounts(data)
+        // Requesting a high limit to pull all 9000+ accounts from the vectorized backend, passing the honesty toggle
+        const data = await fetchAccounts(15000, hideInSample) 
+        setAccounts(data as ExtendedAccount[])
       } catch (err) {
         setError('Failed to fetch accounts from backend')
       } finally {
@@ -46,7 +57,7 @@ function AccountsPage() {
       }
     }
     loadAccounts()
-  }, [])
+  }, [hideInSample]) // Re-trigger fetch when the toggle is clicked
 
   const filteredAccounts = useMemo(() => {
     let result = [...accounts]
@@ -92,21 +103,19 @@ function AccountsPage() {
     high: accounts.filter((a) => a.risk_level === 'High').length,
     medium: accounts.filter((a) => a.risk_level === 'Medium').length,
     low: accounts.filter((a) => a.risk_level === 'Low').length,
-    totalExposure: accounts.reduce((sum, a) => sum + (a.damage_metrics?.recoverable_amount ?? 0) + (a.damage_metrics?.in_transit_amount ?? 0), 0),
     simulated: accounts.filter((a) => a.is_simulated).length,
   }), [accounts])
 
-  function handleSort(key: keyof RiskEvaluationResponse) {
+  function handleSort(key: keyof ExtendedAccount) {
     setSortConfig((prev) => ({
       key,
       direction: prev?.key === key && prev.direction === 'desc' ? 'asc' : 'desc',
     }))
   }
 
-  async function handleRowClick(account: RiskEvaluationResponse) {
+  async function handleRowClick(account: ExtendedAccount) {
     setDetailLoading(true)
     try {
-      // Use global evaluateAccount to update currentAccount across all pages
       await evaluateAccount(account.account_id)
       setShowDetail(true)
     } catch (err) {
@@ -115,6 +124,29 @@ function AccountsPage() {
       setDetailLoading(false)
     }
   }
+
+  const renderTierBadge = (level: string) => {
+    const isCriticalOrHigh = level.toUpperCase() === 'CRITICAL' || level.toUpperCase() === 'HIGH';
+    if (isCriticalOrHigh) {
+      return (
+        <span className="border border-rose-500/50 text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+          {level}
+        </span>
+      );
+    }
+    return (
+      <span className="border border-slate-600 text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+        {level}
+      </span>
+    );
+  };
+
+  const renderStatus = (acc: ExtendedAccount) => {
+    if (!acc.human_review) return <span className="text-slate-500">Unknown</span>;
+    if (acc.human_review.requires_review) return <span className="text-slate-400">Under Review</span>;
+    if (acc.human_review.confidence_band === 'AUTO_BLOCK') return <span className="text-rose-400">Blocked</span>;
+    return <span className="text-emerald-400">Cleared</span>;
+  };
 
   return (
     <PageShell>
@@ -129,7 +161,16 @@ function AccountsPage() {
               {filteredAccounts.length} of {accounts.length} accounts • {stats.simulated} simulated
             </p>
           </div>
-          <div className="flex flex-row items-center gap-3">
+          <div className="flex flex-row items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer bg-white/5 border border-white/10 px-3 py-2 rounded-lg hover:bg-white/10 transition shadow-sm">
+              <input 
+                type="checkbox" 
+                checked={hideInSample} 
+                onChange={(e) => setHideInSample(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/50"
+              />
+              Hide Training Data
+            </label>
             <input
               type="text"
               value={searchQuery}
@@ -156,7 +197,7 @@ function AccountsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
             <div className="p-2 rounded" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
               <span className="text-xl">🚨</span>
@@ -191,15 +232,6 @@ function AccountsPage() {
             <div>
               <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Low</p>
               <p className="text-xl font-bold" style={{ color: '#22c55e' }}>{stats.low}</p>
-            </div>
-          </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(168, 85, 247, 0.15)' }}>
-              <span className="text-xl">💰</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Total Exposure</p>
-              <p className="text-lg font-bold" style={{ color: '#a855f7' }}>{formatINR(stats.totalExposure)}</p>
             </div>
           </div>
           <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(34, 211, 238, 0.3)' }}>
@@ -244,8 +276,8 @@ function AccountsPage() {
           })}
         </div>
 
-        {/* Table */}
-        <div className="flex-1 glass flex flex-col overflow-hidden">
+        {/* Target Table Redesign */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
               <p className="text-sm" style={{ color: '#22d3ee' }}>
@@ -264,109 +296,87 @@ function AccountsPage() {
               <p className="text-sm" style={{ color: '#94a3b8' }}>No accounts match your filters</p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col overflow-x-auto">
-              <div className="min-w-[800px] flex flex-col h-full">
-                <div className="flex flex-row items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-                <div className="flex flex-row items-center gap-2 text-xs" style={{ color: '#94a3b8', letterSpacing: '0.18em' }}>
-                  <span className="flex-1 min-w-[140px]" onClick={() => handleSort('account_id')} style={{ cursor: 'pointer' }}>
-                    Account ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center" onClick={() => handleSort('risk_score')} style={{ cursor: 'pointer' }}>
-                    Score {sortConfig?.key === 'risk_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-28 text-center" onClick={() => handleSort('risk_level')} style={{ cursor: 'pointer' }}>
-                    Level {sortConfig?.key === 'risk_level' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-36 text-center" onClick={() => handleSort('kill_chain_stage')} style={{ cursor: 'pointer' }}>
-                    Stage {sortConfig?.key === 'kill_chain_stage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-40 text-center" onClick={() => handleSort('damage_metrics')} style={{ cursor: 'pointer' }}>
-                    Recoverable {sortConfig?.key === 'damage_metrics' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center">
-                    Network
-                  </span>
-                  <span className="w-24 text-center">
-                    Actions
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full border-collapse text-sm">
-                  <tbody>
-                    {filteredAccounts.map((row) => (
-                      <tr
-                        key={row.account_id}
-                        onClick={() => handleRowClick(row)}
-                        className="cursor-pointer hover:bg-white/5 transition-colors border-b"
-                        style={{ borderColor: 'rgba(255, 255, 255, 0.04)' }}
-                      >
-                        <td className="px-6 py-4 font-mono min-w-[140px]">
-                          <span className="flex flex-row items-center gap-2" style={{ color: '#22d3ee' }}>
-                            {row.account_id}
-                            {row.is_simulated && (
-                              <span
-                                title="Simulated result - no trained model artifacts matched this account"
-                                className="inline-flex items-center bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 rounded"
-                              >
-                                Sim
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center tabular-nums font-bold" style={{ color: '#f8fafc' }}>
-                          {row.risk_score}
-                        </td>
-                        <td className="px-6 py-4 w-28 text-center">
-                          <span
-                            className="inline-flex items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded"
-                            style={{
-                              backgroundColor: `${RISK_COLORS[row.risk_level]}33`,
-                              color: RISK_COLORS[row.risk_level],
-                              boxShadow: RISK_GLOWS[row.risk_level],
-                            }}
+            <div className="overflow-auto bg-[#141820] border border-slate-800/80 rounded-xl flex-1">
+              <table className="w-full text-left text-sm whitespace-nowrap relative">
+                <thead className="bg-[#1C212B] text-[11px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-800 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('account_id')}>
+                      ACCOUNT ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4">TYPE</th>
+                    <th className="px-6 py-4">OCCUPATION</th>
+                    <th className="px-6 py-4">AGE</th>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('anomaly_score')}>
+                      ANOMALY {sortConfig?.key === 'anomaly_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('model_probability')}>
+                      ENSEMBLE PROB. {sortConfig?.key === 'model_probability' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer text-emerald-400" onClick={() => handleSort('risk_score')}>
+                      RISK SCORE {sortConfig?.key === 'risk_score' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↓'}
+                    </th>
+                    <th className="px-6 py-4">TIER</th>
+                    <th className="px-6 py-4">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {filteredAccounts.map((account) => (
+                    <tr 
+                      key={account.account_id} 
+                      onClick={() => handleRowClick(account)}
+                      className="hover:bg-slate-800/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-6 py-3.5 font-mono text-slate-200 flex items-center gap-2">
+                        {account.account_id}
+                        {account.was_seen_during_training && (
+                          <span 
+                            className="bg-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider" 
+                            title="In-Sample Training Data"
                           >
-                            {row.risk_level}
+                            Train
                           </span>
-                        </td>
-                        <td className="px-6 py-4 w-36 text-center" style={{ color: '#94a3b8' }}>
-                          {row.kill_chain_stage}
-                        </td>
-                        <td className="px-6 py-4 w-40 text-center tabular-nums font-medium" style={{ color: '#a855f7' }}>
-                          {formatINR(row.damage_metrics?.recoverable_amount ?? 0)}
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center text-xs" style={{ color: '#94a3b8' }}>
-                          {row.network_connections?.nodes.length ?? 0} nodes
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRowClick(row)
-                            }}
-                            className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider rounded transition-all"
-                            style={{
-                              background: 'rgba(34, 211, 238, 0.1)',
-                              border: '1px solid rgba(34, 211, 238, 0.3)',
-                              color: '#22d3ee',
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-slate-300">{account.account_type || 'Unknown'}</td>
+                      <td className="px-6 py-3.5 text-slate-300 capitalize">{account.occupation || 'Unknown'}</td>
+                      <td className="px-6 py-3.5 text-slate-300">{account.age || 0}</td>
+                      <td className="px-6 py-3.5 text-slate-300">
+                        {(account.anomaly_score || 0).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-3.5 text-slate-300">
+                        {(account.model_probability || 0).toFixed(3)}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 font-medium text-slate-200">{account.risk_score}</span>
+                          <div className="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${
+                                account.risk_score > 900 ? 'bg-[#FF4A5A]' : 
+                                account.risk_score > 600 ? 'bg-orange-500' : 
+                                'bg-emerald-500'
+                              }`}
+                              style={{ width: `${(account.risk_score / 1000) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {renderTierBadge(account.risk_level)}
+                      </td>
+                      <td className="px-6 py-3.5 text-xs text-slate-400">
+                        {renderStatus(account)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       </div>
 
-      {/* Detail Drawer */}
+      {/* Detail Drawer (Intact for Deep Dives) */}
       {showDetail && currentAccount && (
         <div
           className="fixed inset-0 z-50 flex flex-row justify-end"
@@ -394,7 +404,7 @@ function AccountsPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-6">
+            <div className="p-5 space-y-6 overflow-y-auto h-full pb-20">
               {detailLoading && (
                 <div className="flex items-center justify-center py-8">
                   <p className="text-sm" style={{ color: '#22d3ee' }}>
@@ -410,6 +420,11 @@ function AccountsPage() {
               <div className="flex flex-row items-center justify-between">
                 <span className="font-mono text-xl" style={{ color: '#f8fafc' }}>{currentAccount.account_id}</span>
                 <div className="flex flex-row items-center gap-2">
+                  {currentAccount.was_seen_during_training && (
+                    <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                      Training Set
+                    </span>
+                  )}
                   <span
                     className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${
                       currentAccount.is_simulated ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
@@ -428,18 +443,41 @@ function AccountsPage() {
                     <p className="text-5xl font-extrabold text-gradient-cyan-purple">{currentAccount.risk_score}</p>
                     <p className="text-xs" style={{ color: '#94a3b8' }}>out of 1000</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Risk Level</p>
-                    <span
-                      className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider rounded"
-                      style={{
-                        backgroundColor: `${RISK_COLORS[currentAccount.risk_level]}33`,
-                        color: RISK_COLORS[currentAccount.risk_level],
-                        boxShadow: RISK_GLOWS[currentAccount.risk_level],
-                      }}
-                    >
-                      {currentAccount.risk_level}
-                    </span>
+                  <div className="flex flex-col gap-2 items-end">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Risk Level</p>
+                      <span
+                        className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider rounded"
+                        style={{
+                          backgroundColor: `${RISK_COLORS[currentAccount.risk_level]}33`,
+                          color: RISK_COLORS[currentAccount.risk_level],
+                          boxShadow: RISK_GLOWS[currentAccount.risk_level],
+                        }}
+                      >
+                        {currentAccount.risk_level}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Rec. Action</p>
+                      {(() => {
+                        const band = currentAccount.human_review?.confidence_band
+                        const isBlock = band === 'AUTO_BLOCK'
+                        const isClear = band === 'AUTO_CLEAR'
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded"
+                            style={{
+                              backgroundColor: isClear ? 'rgba(34, 197, 94, 0.15)' : isBlock ? 'rgba(239, 68, 68, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                              color: isClear ? '#22c55e' : isBlock ? '#ef4444' : '#eab308',
+                              border: `1px solid ${isClear ? 'rgba(34, 197, 94, 0.3)' : isBlock ? 'rgba(239, 68, 68, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`
+                            }}
+                          >
+                            {currentAccount.human_review?.anomaly_flagged && <span>⚠️</span>}
+                            {band?.replace(/_/g, ' ')}
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>

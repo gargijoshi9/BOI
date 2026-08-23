@@ -1,0 +1,11 @@
+[
+  {
+    "account_id": "3973",
+    "decision": "escalate",
+    "reviewer_name": "nhj",
+    "note": "jh",
+    "model_risk_score": 948,
+    "model_review_reason": "borderline_confidence",
+    "timestamp": "2026-08-23T03:15:47.469183"
+  }
+]
