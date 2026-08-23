@@ -12,6 +12,8 @@ from app.schemas.models import (
 from app.services.analyzer import mule_analyzer
 from app.services import audit_trail
 
+from app.services.copilot import generate_ai_explanation
+
 router = APIRouter()
 
 @router.get("/accounts", response_model=List[RiskEvaluationResponse])
@@ -151,5 +153,17 @@ async def resolve_review(account_id: str, req: ReviewDecisionRequest):
 async def get_audit_trail(account_id: Optional[str] = None):
     try:
         return audit_trail.get_trail(account_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/copilot/summarize/{account_id}")
+async def get_copilot_summary(account_id: str):
+    try:
+        report = mule_analyzer.evaluate_account(account_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Account not found and simulator failed.")
+        
+        summary = generate_ai_explanation(report)
+        return {"summary": summary}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

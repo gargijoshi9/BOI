@@ -20,7 +20,7 @@ interface AggregatedStats {
 }
 
 function Dashboard() {
-  const { currentAccount, evaluateAccount, isEvaluating, evaluationError, recentEvaluations } = useApp()
+  const { currentAccount, evaluateAccount, isEvaluating, evaluationError } = useApp()
   const { openDrawerForAccount } = useDrawer()
   const [accountInput, setAccountInput] = useState('')
   const [globalStats, setGlobalStats] = useState<AggregatedStats | null>(null)
@@ -86,15 +86,14 @@ function Dashboard() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    handleEvaluate(accountInput)
+    if (!accountInput.trim()) return
+    handleEvaluate(accountInput.trim())
   }
-
-  const hasEvaluation = currentAccount !== null
 
   const renderDoughnut = () => {
     if (!globalStats || globalStats.total === 0) return (
-      <div className="card flex items-center justify-center p-6 h-full border border-slate-800 bg-[#0b0f19]">
-        <span className="text-slate-500">Loading risk breakdown...</span>
+      <div className="rounded-2xl border border-border/50 bg-background-card/80 backdrop-blur-xl flex items-center justify-center p-6 h-full shadow-xl min-h-[260px]">
+        <span className="text-foreground-muted text-xs">Loading risk breakdown...</span>
       </div>
     )
     const { critical, high, medium, low, total } = globalStats
@@ -115,8 +114,8 @@ function Dashboard() {
     const offset4 = ((pct1 + pct2 + pct3) / 100) * c
 
     return (
-      <div className="card flex flex-col p-6 border border-slate-800 bg-[#121620] h-full">
-        <h3 className="text-xs font-bold text-slate-100 mb-6">Risk Score Distribution</h3>
+      <div className="rounded-2xl border border-border/50 bg-background-card/80 backdrop-blur-xl flex flex-col p-6 h-full shadow-xl">
+        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-6">Risk Score Distribution</h3>
         <div className="flex flex-row items-center justify-between flex-1">
           <div className="relative w-32 h-32 flex-shrink-0">
             <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
@@ -126,15 +125,15 @@ function Dashboard() {
               <circle cx={cx} cy={cy} r={r} fill="transparent" stroke="#ef4444" strokeWidth="12" strokeDasharray={`${(pct4/100)*c} ${c}`} strokeDashoffset={-offset4} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-red-500">{criticalPct.toFixed(1)}%</span>
-              <span className="text-[9px] text-slate-400">Critical</span>
+              <span className="text-xl font-bold text-red-400 font-mono">{criticalPct.toFixed(1)}%</span>
+              <span className="text-[9px] text-foreground-muted uppercase">Critical</span>
             </div>
           </div>
           <div className="flex flex-col gap-3 flex-1 ml-4 justify-center">
-            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div><span className="text-xs text-slate-300">Critical</span></div><span className="font-mono text-slate-100 text-xs">{critical.toLocaleString()}</span></div>
-            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-xs text-slate-300">High</span></div><span className="font-mono text-slate-100 text-xs">{high.toLocaleString()}</span></div>
-            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-yellow-500"></div><span className="text-xs text-slate-300">Medium</span></div><span className="font-mono text-slate-100 text-xs">{medium.toLocaleString()}</span></div>
-            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div><span className="text-xs text-slate-300">Low</span></div><span className="font-mono text-slate-100 text-xs">{low.toLocaleString()}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div><span className="text-xs text-foreground-muted">Critical</span></div><span className="font-mono text-foreground font-semibold text-xs">{critical.toLocaleString()}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-xs text-foreground-muted">High</span></div><span className="font-mono text-foreground font-semibold text-xs">{high.toLocaleString()}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-yellow-500"></div><span className="text-xs text-foreground-muted">Medium</span></div><span className="font-mono text-foreground font-semibold text-xs">{medium.toLocaleString()}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div><span className="text-xs text-foreground-muted">Low</span></div><span className="font-mono text-foreground font-semibold text-xs">{low.toLocaleString()}</span></div>
           </div>
         </div>
       </div>
@@ -146,19 +145,19 @@ function Dashboard() {
     const maxVal = entries[0]?.[1] || 1;
 
     return (
-      <div className="card flex flex-col p-6 border border-slate-800 bg-[#121620] h-full">
-        <h3 className="text-xs font-bold text-slate-100 mb-6">{title}</h3>
+      <div className="rounded-2xl border border-border/50 bg-background-card/80 backdrop-blur-xl flex flex-col p-6 h-full shadow-xl">
+        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-6">{title}</h3>
         <div className="flex flex-col gap-4 flex-1 justify-center">
           {entries.length === 0 ? (
-            <span className="text-slate-500 text-xs">No high risk data</span>
+            <span className="text-foreground-muted text-xs">No high risk data</span>
           ) : (
             entries.map(([label, count]) => (
               <div key={label} className="flex flex-col gap-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-300 capitalize truncate pr-4">{label}</span>
-                  <span className="font-mono text-slate-100">{count}</span>
+                  <span className="text-foreground-muted capitalize truncate pr-4">{label}</span>
+                  <span className="font-mono font-semibold text-foreground">{count}</span>
                 </div>
-                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-background/60 h-1.5 rounded-full overflow-hidden border border-border/30">
                   <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${(count / maxVal) * 100}%` }}></div>
                 </div>
               </div>
@@ -169,313 +168,32 @@ function Dashboard() {
     )
   }
 
-  // Render Trend Line removed to prevent static hallucination
-
-  function renderEmptyStateDashboard() {
-    if (!globalStats) return (
-      <div className="flex items-center justify-center p-20">
-        <span className="text-slate-500">Loading Dashboard Data...</span>
-      </div>
-    );
-
-    return (
-      <div className="flex flex-col gap-4">
-        {/* Top KPI Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 bg-[#121620] border border-slate-800 rounded-xl flex flex-col gap-1 shadow-sm">
-            <span className="text-xs text-slate-400">Total Accounts</span>
-            <div className="flex items-end justify-between">
-              <span className="text-2xl font-bold text-slate-100 font-mono">{globalStats.total.toLocaleString()}</span>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-1">scanned in current batch</span>
-          </div>
-          <div className="p-5 bg-[#121620] border border-orange-900/40 rounded-xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 rounded-bl-full blur-xl"></div>
-            <span className="text-xs text-slate-400">Flagged for Review</span>
-            <div className="flex items-end justify-between">
-              <span className="text-2xl font-bold text-orange-500 font-mono">{globalStats.flagged.toLocaleString()}</span>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-1">top ~{(globalStats.flagged / Math.max(globalStats.total, 1) * 100).toFixed(1)}% by risk score</span>
-          </div>
-          <div className="p-5 bg-[#121620] border border-red-900/40 rounded-xl flex flex-col gap-1 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full blur-xl"></div>
-            <span className="text-xs text-slate-400">Critical Tier</span>
-            <div className="flex items-end justify-between">
-              <span className="text-2xl font-bold text-red-500 font-mono">{globalStats.critical.toLocaleString()}</span>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-1">{(globalStats.critical / Math.max(globalStats.flagged, 1) * 100).toFixed(1)}% of flagged</span>
-          </div>
-          <div className="p-5 bg-[#121620] border border-slate-800 rounded-xl flex flex-col gap-1 shadow-sm">
-            <span className="text-xs text-slate-400">Avg Model Confidence</span>
-            <div className="flex items-end justify-between">
-              <span className="text-2xl font-bold text-cyan-400 font-mono">{(globalStats.avgModelProbability * 100).toFixed(1)}%</span>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-1">across all scanned accounts</span>
-          </div>
-        </div>
-
-        {/* Disclaimer Banner */}
-        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3">
-          <span className="text-amber-500 text-sm">⚠</span>
-          <p className="text-[10px] text-amber-500/80 leading-relaxed">
-            This dataset has no confirmed fraud/mule ground-truth labels. Model was trained on rule-derived proxy labels (occupation/volume mismatch + a bounded extreme-value outlier count, deliberately NOT the anomaly detector's own output, to limit label circularity). Both AUC figures reflect fit to those proxy labels, including the holdout figure measured on a 20% split never touched during fitting -- neither is a validated real-world fraud detection rate.
-          </p>
-        </div>
-
-        {/* Chart Grids */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[300px]">
-          <div className="h-full">
-            {renderDoughnut()}
-          </div>
-          <div className="h-full">
-            {renderHorizontalBars("Top Risk Segments", globalStats.segments, "bg-red-500")}
-          </div>
-          <div className="h-full">
-            {renderHorizontalBars("Top Risk Occupations", globalStats.occupations, "bg-red-500")}
-          </div>
-        </div>
-
-        {/* Bottom Row */}
-        <div className="grid grid-cols-1 gap-4">
-          <div className="card flex flex-col p-5 border border-slate-800 bg-[#121620]">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
-              <h3 className="text-xs font-bold text-slate-100">Recent Critical Alerts</h3>
-              <Link to="/accounts" className="text-[10px] text-green-500 hover:underline">View all</Link>
-            </div>
-            <div className="flex flex-col gap-3">
-              {globalStats.recentCriticals.length === 0 ? (
-                <span className="text-slate-500 text-xs">No critical alerts</span>
-              ) : (
-                globalStats.recentCriticals.map((alert, i) => (
-                  <button key={i} onClick={() => handleEvaluate(alert.account_id)} className="flex justify-between items-center group cursor-pointer border-none bg-transparent p-0 m-0 w-full text-left hover:bg-white/5 rounded-lg p-2 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className="px-2 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-500 border border-red-500/30">CRITICAL</span>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-slate-200 font-mono group-hover:text-cyan-400 transition-colors">{alert.account_id}</span>
-                        <span className="text-[9px] text-slate-500">Score: {alert.risk_score}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  function renderEvaluationContent() {
-    if (!hasEvaluation) {
-      return renderEmptyStateDashboard();
-    }
-
-    return (
-      <>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-          <RiskScoreWidget
-            riskScore={currentAccount!.risk_score}
-            riskLevel={currentAccount!.risk_level}
-            isSimulated={currentAccount!.is_simulated}
-          />
-          {renderDoughnut()}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 mb-5">
-          {currentAccount!.human_review?.confidence_band === 'AUTO_BLOCK' ? (
-            <button onClick={() => setActionModal({ isOpen: true, decision: 'confirm_mule', reviewerName: '', note: '' })} className="btn-primary flex-1 gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="M10 4v16" />
-              </svg>
-              <span>Auto-Freeze Account</span>
-            </button>
-          ) : currentAccount!.human_review?.confidence_band === 'AUTO_CLEAR' ? (
-            <button onClick={() => setActionModal({ isOpen: true, decision: 'clear', reviewerName: '', note: '' })} className="btn-secondary flex-1 gap-2" style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#22c55e' }}>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-              <span>Auto-Cleared (Safe)</span>
-            </button>
-          ) : (
-            <button onClick={() => setActionModal({ isOpen: true, decision: 'escalate', reviewerName: '', note: '' })} className="btn-secondary flex-1 gap-2" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)', color: '#eab308' }}>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              <span>Human Review Required</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          <div className="card card-hover bg-[#121620] border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-accent/15">
-                <svg className="h-5 w-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="6" />
-                  <circle cx="12" cy="12" r="2" />
-                </svg>
-              </div>
-              <div>
-                <p className="stat-label">Network Connections</p>
-                <p className="font-mono font-bold text-heading-sm text-accent">
-                  {currentAccount!.network_connections?.nodes.length ?? 0} Nodes
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card card-hover bg-[#121620] border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-purple-500/15">
-                <svg className="h-5 w-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                </svg>
-              </div>
-              <div>
-                <p className="stat-label">Model Engine</p>
-                <p className="font-mono font-bold text-heading-sm text-purple-400">
-                  {currentAccount!.is_simulated ? 'Simulator' : 'Live ML'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card card-hover bg-[#121620] border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-amber-500/15">
-                <svg className="h-5 w-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                </svg>
-              </div>
-              <div>
-                <p className="stat-label">Action Priority</p>
-                <p className="font-mono font-bold text-heading-sm text-amber-500">
-                  {currentAccount!.human_review?.confidence_band === 'AUTO_BLOCK' ? 'Immediate' : 'Review'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card card-hover bg-[#121620] border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-green-500/15">
-                <svg className="h-5 w-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16" />
-                  <polyline points="23 21 16 14 9 21 4 16" />
-                </svg>
-              </div>
-              <div>
-                <p className="stat-label">Anomaly Status</p>
-                <p className="font-mono font-bold text-heading-sm text-green-500">
-                  {currentAccount!.human_review?.anomaly_flagged ? 'Flagged' : 'Normal'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-          <Link to="/shap" className="card card-hover flex items-center gap-4 p-5 bg-[#121620] border-slate-800">
-            <div className="p-3 rounded-xl bg-purple-500/15">
-              <svg className="h-6 w-6 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 20V10" />
-                <path d="M12 20V4" />
-                <path d="M6 20v-6" />
-              </svg>
-            </div>
-            <div>
-              <p className="stat-label">SHAP Explainability</p>
-              <p className="font-semibold text-heading-sm text-purple-400">View Feature Importance</p>
-            </div>
-          </Link>
-          <Link to="/network" className="card card-hover flex items-center gap-4 p-5 bg-[#121620] border-slate-800">
-            <div className="p-3 rounded-xl bg-accent/15">
-              <svg className="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <circle cx="12" cy="12" r="6" />
-                <circle cx="12" cy="12" r="2" />
-              </svg>
-            </div>
-            <div>
-              <p className="stat-label">Transaction Network</p>
-              <p className="font-semibold text-heading-sm text-accent">Visualize Fraud Ring</p>
-            </div>
-          </Link>
-        </div>
-
-        <div className="card flex flex-col bg-[#121620] border-slate-800">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-heading-sm font-semibold text-foreground">Recent Evaluations</h3>
-            <Link to="/accounts" className="text-body-sm font-medium text-accent hover:text-accent-hover transition-colors">
-              View All →
-            </Link>
-          </div>
-          <div className="space-y-2 max-h-[500px] overflow-y-auto">
-            {recentEvaluations.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-body-sm text-foreground-muted">
-                  Recent evaluations will appear here after you evaluate accounts
-                </p>
-              </div>
-            ) : (
-              recentEvaluations.map((acc) => (
-                <button
-                  key={acc.account_id}
-                  onClick={() => {
-                    setAccountInput(acc.account_id)
-                    handleEvaluate(acc.account_id)
-                  }}
-                  className="w-full p-4 rounded-xl text-left transition-all hover:bg-background-cardHover border border-slate-800"
-                >
-                  <div className="flex flex-row items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-body-md text-foreground">{acc.account_id}</span>
-                      {acc.is_simulated && (
-                        <span className="badge badge-high">Sim</span>
-                      )}
-                    </div>
-                    <span className={`badge ${['Critical', 'High'].includes(acc.risk_level) ? 'badge-critical' : ['Medium'].includes(acc.risk_level) ? 'badge-medium' : 'badge-low'}`}>
-                      {acc.risk_level}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-row items-center gap-4 text-body-sm text-foreground-muted">
-                    <span>Score: <span className="font-bold text-foreground">{acc.risk_score}</span></span>
-                    <span>{acc.human_review?.confidence_band === 'AUTO_BLOCK' ? 'Auto Block' : 'Review'}</span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      </>
-    )
-  }
-
   return (
     <PageShell>
       {/* Action Modal */}
       {actionModal?.isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#121620] border border-slate-800 rounded-2xl p-6 shadow-2xl w-full max-w-md animate-fade-in relative">
-            <h3 className="text-xl font-bold text-slate-100 mb-2">Review Decision</h3>
-            <p className="text-sm text-slate-400 mb-6">Please provide your signature and notes for the compliance audit log.</p>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-background-card border border-border/60 rounded-2xl p-6 shadow-2xl w-full max-w-md animate-fade-in relative space-y-4">
+            <div>
+              <h3 className="text-xl font-bold text-foreground">Review Decision</h3>
+              <p className="text-xs text-foreground-muted mt-1">Please provide your signature and notes for the compliance audit log.</p>
+            </div>
             
-            <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Reviewer Name</label>
+                <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-1 block">Reviewer Name</label>
                 <input 
                   type="text" 
-                  className="w-full bg-[#0b0f19] border border-slate-700 text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-accent" 
-                  placeholder="e.g. Jane Doe"
+                  className="w-full bg-background/50 border border-border/60 text-foreground px-3.5 py-2 rounded-xl text-xs focus:outline-none focus:border-accent" 
+                  placeholder="e.g. Senior AML Officer"
                   value={actionModal.reviewerName}
                   onChange={(e) => setActionModal({...actionModal, reviewerName: e.target.value})}
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Investigator Notes</label>
+                <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-1 block">Investigator Notes</label>
                 <textarea 
-                  className="w-full bg-[#0b0f19] border border-slate-700 text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-accent h-24 resize-none" 
+                  className="w-full bg-background/50 border border-border/60 text-foreground px-3.5 py-2 rounded-xl text-xs focus:outline-none focus:border-accent h-24 resize-none" 
                   placeholder="Add justification or context here..."
                   value={actionModal.note}
                   onChange={(e) => setActionModal({...actionModal, note: e.target.value})}
@@ -483,10 +201,10 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 pt-2">
               <button 
                 onClick={() => setActionModal(null)} 
-                className="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-foreground-muted hover:text-foreground transition-colors"
               >
                 Cancel
               </button>
@@ -504,7 +222,7 @@ function Dashboard() {
                   }
                   setActionModal(null)
                 }}
-                className="px-6 py-2 bg-accent hover:bg-accent/80 text-navy-950 text-sm font-bold rounded-lg transition-colors"
+                className="px-6 py-2 bg-accent hover:bg-accent-hover text-navy-950 text-xs font-bold rounded-xl transition-all shadow-glow-teal"
               >
                 Confirm & Log
               </button>
@@ -515,30 +233,38 @@ function Dashboard() {
 
       {/* Toast Notification */}
       <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform ${toastMessage ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none'}`}>
-        <div className="bg-[#121620] border border-accent/30 rounded-xl px-5 py-3.5 shadow-2xl shadow-accent/20 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-accent animate-pulse"></div>
-          <p className="text-sm font-semibold text-slate-200 tracking-wide">{toastMessage}</p>
+        <div className="bg-background-card border border-accent/30 rounded-xl px-5 py-3.5 shadow-2xl shadow-accent/20 flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-accent animate-pulse"></div>
+          <p className="text-xs font-semibold text-foreground tracking-wide">{toastMessage}</p>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 lg:p-8 relative bg-[#0b0f19]">
+
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-heading-xl font-bold text-slate-100 tracking-tight">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-md bg-accent/10 border border-accent/20 text-accent text-xs font-semibold tracking-wide uppercase">
+                AI/ML Mule Account Intelligence
+              </span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground mt-2 tracking-tight">
               Fraud Operations Console
             </h1>
-            <p className="mt-1 text-body-md text-slate-400">
-              Real-time mule account detection & risk assessment
+            <p className="text-body-sm text-foreground-muted mt-1">
+              Real-time mule account detection, behavioral profiling & risk assessment
             </p>
           </div>
+
           <div className="flex flex-row items-center gap-3 flex-wrap">
-            <Link to="/accounts" className="btn-secondary border-slate-700 bg-slate-800 text-slate-200">
+            <Link to="/accounts" className="px-4 py-2.5 rounded-xl border border-border/60 bg-background-card/80 text-foreground hover:bg-background-cardHover text-xs font-semibold transition">
               Browse Accounts
             </Link>
-            {hasEvaluation && (
+            {currentAccount && (
               <button
                 type="button"
-                onClick={() => openDrawerForAccount(currentAccount!.account_id)}
-                className="btn-primary"
+                onClick={() => openDrawerForAccount(currentAccount.account_id)}
+                className="px-5 py-2.5 rounded-xl bg-accent text-navy-950 hover:bg-accent-hover font-semibold text-xs transition-all shadow-glow-teal flex items-center gap-2"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -549,43 +275,207 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Search Bar */}
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch gap-3 max-w-3xl">
           <input
             type="text"
             value={accountInput}
             onChange={(e) => setAccountInput(e.target.value)}
-            placeholder="Search account, alert, case..."
-            className="input-field flex-1 bg-[#121620] border-slate-700 text-slate-200 placeholder-slate-500"
+            placeholder="Search account ID, alert, or case..."
+            className="input-field flex-1 bg-background/50 border border-border/60 text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-accent rounded-xl"
           />
           <button
             type="submit"
             disabled={isEvaluating}
-            className="btn-primary whitespace-nowrap bg-green-600 hover:bg-green-500 text-white border-green-500"
+            className="px-6 py-2.5 rounded-xl bg-accent text-navy-950 hover:bg-accent-hover font-semibold text-xs transition-all shadow-glow-teal whitespace-nowrap"
           >
-            {isEvaluating ? 'Evaluating...' : 'Evaluate'}
+            {isEvaluating ? 'Evaluating...' : 'Evaluate Account'}
           </button>
         </form>
 
         {isEvaluating && (
-          <div className="glass flex items-center justify-center p-4 border border-accent/20 bg-accent/5">
-            <p className="text-body-sm text-accent flex items-center gap-1">
-              Analyzing account...
-              <span className="ellipsis-dot">.</span>
-              <span className="ellipsis-dot">.</span>
-              <span className="ellipsis-dot">.</span>
-            </p>
-          </div>
-        )}
-        {evaluationError && !isEvaluating && (
-          <div className="glass flex items-center justify-center p-4 border border-risk-critical/30 bg-risk-critical/5">
-            <p className="text-body-sm text-risk-critical">Error: {evaluationError}</p>
+          <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-accent text-xs flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4 text-accent" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Analyzing account behavioral features...</span>
           </div>
         )}
 
-        <div className="flex-1 min-h-0">
-          {renderEvaluationContent()}
-        </div>
-      </div>
+        {evaluationError && !isEvaluating && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Error: {evaluationError}</span>
+          </div>
+        )}
+
+        {/* ACTIVE EVALUATED ACCOUNT PANEL (Shown at top when an account is actively selected/evaluated) */}
+        {currentAccount && (
+          <div className="rounded-2xl border border-accent/30 bg-background-card/90 backdrop-blur-xl p-6 shadow-2xl space-y-5 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 pb-4">
+              <div>
+                <span className="text-[10px] font-bold text-accent uppercase tracking-wider">Active Evaluation Focus</span>
+                <h2 className="text-xl font-bold font-mono text-foreground mt-0.5">{currentAccount.account_id}</h2>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link to="/shap" className="px-3.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition flex items-center gap-1.5">
+                  <span>📊</span> SHAP Analysis
+                </Link>
+                <Link to="/network" className="px-3.5 py-1.5 rounded-xl border border-accent/30 bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/20 transition flex items-center gap-1.5">
+                  <span>🔗</span> Network Ring
+                </Link>
+                <button
+                  onClick={() => openDrawerForAccount(currentAccount.account_id)}
+                  className="px-3.5 py-1.5 rounded-xl bg-accent text-navy-950 text-xs font-bold hover:bg-accent-hover transition flex items-center gap-1.5"
+                >
+                  <span>🤖</span> Ask AI Assistant
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <RiskScoreWidget
+                riskScore={currentAccount.risk_score}
+                riskLevel={currentAccount.risk_level}
+                isSimulated={currentAccount.is_simulated}
+              />
+              <div className="rounded-2xl border border-border/50 bg-background/40 p-5 flex flex-col justify-between space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl bg-background-card border border-border/40">
+                    <span className="stat-label">Kill Chain Stage</span>
+                    <p className="mt-1 font-bold text-sm text-amber-400">{(currentAccount as any).kill_chain_stage || 'None'}</p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-background-card border border-border/40">
+                    <span className="stat-label">Network Counterparties</span>
+                    <p className="mt-1 font-mono font-bold text-sm text-accent">
+                      {currentAccount.network_connections?.nodes.length ?? 0} Nodes
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <span className="stat-label">Adjudication Action</span>
+                  <div className="mt-2">
+                    {currentAccount.human_review?.confidence_band === 'AUTO_BLOCK' ? (
+                      <button onClick={() => setActionModal({ isOpen: true, decision: 'confirm_mule', reviewerName: '', note: '' })} className="btn-primary w-full gap-2 rounded-xl justify-center" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
+                        <span>Auto-Freeze Account</span>
+                      </button>
+                    ) : currentAccount.human_review?.confidence_band === 'AUTO_CLEAR' ? (
+                      <button onClick={() => setActionModal({ isOpen: true, decision: 'clear', reviewerName: '', note: '' })} className="btn-secondary w-full gap-2 rounded-xl justify-center" style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#22c55e' }}>
+                        <span>Auto-Cleared (Safe)</span>
+                      </button>
+                    ) : (
+                      <button onClick={() => setActionModal({ isOpen: true, decision: 'escalate', reviewerName: '', note: '' })} className="btn-secondary w-full gap-2 rounded-xl justify-center" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)', color: '#eab308' }}>
+                        <span>Human Review Required</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SYSTEM-WIDE EXECUTIVE ANALYTICS SECTION (Always present on Dashboard) */}
+        {globalStats ? (
+          <div className="flex flex-col gap-5">
+            {/* Top KPI Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl flex flex-col gap-1">
+                <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Total Scanned Accounts</span>
+                <div className="flex items-end justify-between mt-1">
+                  <span className="text-3xl font-bold text-foreground font-mono">{globalStats.total.toLocaleString()}</span>
+                </div>
+                <span className="text-[11px] text-foreground-muted">Evaluated in current batch</span>
+              </div>
+              
+              <div className="p-5 rounded-2xl bg-background-card/80 border border-orange-500/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 rounded-bl-full blur-xl pointer-events-none"></div>
+                <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Flagged for Review</span>
+                <div className="flex items-end justify-between mt-1">
+                  <span className="text-3xl font-bold text-orange-400 font-mono">{globalStats.flagged.toLocaleString()}</span>
+                </div>
+                <span className="text-[11px] text-orange-400/80">Top ~{(globalStats.flagged / Math.max(globalStats.total, 1) * 100).toFixed(1)}% by risk score</span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-background-card/80 border border-red-500/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full blur-xl pointer-events-none"></div>
+                <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Critical Risk Tier</span>
+                <div className="flex items-end justify-between mt-1">
+                  <span className="text-3xl font-bold text-red-400 font-mono">{globalStats.critical.toLocaleString()}</span>
+                </div>
+                <span className="text-[11px] text-red-400/80">{(globalStats.critical / Math.max(globalStats.flagged, 1) * 100).toFixed(1)}% of flagged pool</span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl flex flex-col gap-1">
+                <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Avg Model Confidence</span>
+                <div className="flex items-end justify-between mt-1">
+                  <span className="text-3xl font-bold text-cyan-400 font-mono">{(globalStats.avgModelProbability * 100).toFixed(1)}%</span>
+                </div>
+                <span className="text-[11px] text-foreground-muted">Across all evaluated accounts</span>
+              </div>
+            </div>
+
+            {/* Methodology Disclaimer Banner */}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-body-sm text-amber-300/90 leading-relaxed">
+                Data Methodology Note: Model evaluated using hold-out validation split. Post-event proxy features and timestamp flags were explicitly purged to prevent data leakage and ensure real-world applicability.
+              </p>
+            </div>
+
+            {/* System Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="min-h-[280px]">
+                {renderDoughnut()}
+              </div>
+              <div className="min-h-[280px]">
+                {renderHorizontalBars("Top Risk Segments", globalStats.segments, "bg-red-500")}
+              </div>
+              <div className="min-h-[280px]">
+                {renderHorizontalBars("Top Risk Occupations", globalStats.occupations, "bg-red-500")}
+              </div>
+            </div>
+
+            {/* Bottom Alerts Row */}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="rounded-2xl border border-border/50 bg-background-card/80 backdrop-blur-xl flex flex-col p-6 shadow-xl">
+                <div className="flex justify-between items-center mb-4 border-b border-border/50 pb-3">
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Recent Critical Alerts</h3>
+                  <Link to="/accounts" className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors">View All Accounts →</Link>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {globalStats.recentCriticals.length === 0 ? (
+                    <span className="text-foreground-muted text-xs p-4 text-center">No critical alerts detected.</span>
+                  ) : (
+                    globalStats.recentCriticals.map((alert, i) => (
+                      <button key={i} onClick={() => handleEvaluate(alert.account_id)} className="flex justify-between items-center group cursor-pointer border border-border/30 bg-background/30 p-3 rounded-xl hover:bg-accent/5 hover:border-accent/30 transition-all text-left">
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-md bg-red-500/10 text-red-400 border border-red-500/30">CRITICAL</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-foreground font-mono font-semibold group-hover:text-accent transition-colors">{alert.account_id}</span>
+                            <span className="text-[10px] text-foreground-muted">Risk Score: {alert.risk_score}/1000</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-accent font-medium">Inspect →</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-20">
+            <span className="text-foreground-muted text-sm">Loading Executive Dashboard Data...</span>
+          </div>
+        )}
+      </main>
     </PageShell>
   )
 }
