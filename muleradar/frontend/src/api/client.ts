@@ -4,24 +4,20 @@ import axios, { AxiosInstance } from 'axios'
 
 export type RiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
 
-// 'None' is a real value the backend sends for Low-risk / no-active-stage
-// accounts (see analyzer.py's risk-score bucketing). Omitting it here was
-// the root cause of KillChainWidget rendering "Stage 0 of 3" with no
-// highlighted box - always include every value the backend can actually
-// emit, even ones that feel like "no value."
-export type KillChainStage = 'Placement' | 'Layering' | 'Integration' | 'None'
-
 export type NodeType = 'mule' | 'normal' | 'cash_out' | 'relay'
 
 export interface HealthResponse {
-  status: 'healthy' | string
-  mode: 'Simulated Mode' | 'Live Model Active' | string
-  models: string[]
+  status: 'healthy' | 'online' | string
+  mode?: 'Simulated Mode' | 'Live Model Active' | string
+  models?: string[]
+  ml_engine?: string
 }
 
 export interface ShapFeature {
   feature: string
   contribution: number
+  display_name?: string
+  description?: string
 }
 
 export interface GraphNode {
@@ -38,16 +34,6 @@ export interface GraphEdge {
 export interface NetworkConnections {
   nodes: GraphNode[]
   edges: GraphEdge[]
-}
-
-export interface DamageMetrics {
-  recoverable_amount: number
-  in_transit_amount: number
-  // True when these figures are derived/estimated rather than verified
-  // against real transaction records. Always render this distinction in
-  // the UI - never present an estimate as a confirmed figure.
-  is_estimated: boolean
-  estimation_note?: string | null
 }
 
 export type ConfidenceBand = 'AUTO_CLEAR' | 'HUMAN_REVIEW' | 'AUTO_BLOCK'
@@ -67,12 +53,17 @@ export interface RiskEvaluationResponse {
   age?: number
   anomaly_score?: number
   model_probability?: number
+  model_component_scores?: {
+    xgb_probability?: number;
+    lgbm_probability?: number;
+    cat_probability?: number;
+    anomaly_score_if?: number;
+    combination_method?: string;
+  }
   // --------------------------
   risk_score: number
   risk_level: RiskLevel
-  kill_chain_stage: KillChainStage
   human_review: HumanReviewInfo
-  damage_metrics: DamageMetrics
   shap_explanation: ShapFeature[]
   network_connections: NetworkConnections
   // True when this result came from the deterministic simulator fallback

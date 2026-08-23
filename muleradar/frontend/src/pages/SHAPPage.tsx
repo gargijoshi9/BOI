@@ -81,7 +81,7 @@ function SHAPPage() {
                         <span className="w-1.5 h-1.5 rounded-full bg-risk-critical" />
                         Risk: {acc.risk_score.toLocaleString()}/1000
                       </span>
-                      <span>{acc.kill_chain_stage}</span>
+                      <span>{acc.human_review?.confidence_band}</span>
                     </div>
                   </button>
                 ))}
@@ -121,8 +121,8 @@ function SHAPPage() {
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-background-card border border-border/50">
-                      <span className="stat-label">Kill Chain Stage</span>
-                      <p className="mt-1 font-bold text-xl text-amber-500">{currentAccount.kill_chain_stage}</p>
+                      <span className="stat-label">Human Review</span>
+                      <p className="mt-1 font-bold text-xl text-amber-500">{currentAccount.human_review?.confidence_band}</p>
                     </div>
                     <div className="p-4 rounded-xl bg-background-card border border-border/50">
                       <span className="stat-label">Mode</span>

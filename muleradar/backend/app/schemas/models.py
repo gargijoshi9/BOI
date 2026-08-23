@@ -5,15 +5,11 @@ from pydantic import BaseModel, Field
 # CORE EVALUATION SCHEMAS
 # ==========================================
 
-class DamageMetrics(BaseModel):
-    recoverable_amount: float
-    in_transit_amount: float
-    is_estimated: bool = True
-    estimation_note: Optional[str] = None
-
 class ShapContribution(BaseModel):
     feature: str
     contribution: float
+    display_name: Optional[str] = None
+    description: Optional[str] = None
 
 class GraphNode(BaseModel):
     id: str
@@ -56,11 +52,13 @@ class RiskEvaluationResponse(BaseModel):
     age: int = 0
     anomaly_score: float = 0.0
     model_probability: float = 0.0
+    model_component_scores: Optional[dict] = Field(
+        default=None,
+        description="Real per-model probabilities (xgb/lgbm/cat/if_score) and whether the final score used stacking or a blend - never fabricated weights."
+    )
     # ----------------------
     risk_score: int = Field(..., ge=0, le=1000)
     risk_level: str
-    kill_chain_stage: str
-    damage_metrics: DamageMetrics
     shap_explanation: List[ShapContribution]
     network_connections: NetworkGraph
     human_review: HumanReviewInfo

@@ -1,13 +1,10 @@
-import { DamageMetrics, KillChainStage, RiskLevel } from '../api/client'
+import { RiskLevel } from '../api/client'
 import { RISK_COLORS } from './RiskScoreWidget'
-import { formatINR } from './DamageForecastWidget'
 
 export interface AccountsTableRow {
   account_id: string
   risk_score: number
   risk_level: RiskLevel
-  kill_chain_stage: KillChainStage
-  damage_metrics?: DamageMetrics
   is_simulated?: boolean
 }
 
@@ -75,25 +72,13 @@ function AccountsTable({
               >
                 Risk Level
               </th>
-              <th
-                className="px-4 py-3 text-xs font-medium uppercase"
-                style={{ color: '#94a3b8', letterSpacing: '0.18em' }}
-              >
-                Kill Chain Stage
-              </th>
-              <th
-                className="px-4 py-3 text-xs font-medium uppercase"
-                style={{ color: '#94a3b8', letterSpacing: '0.18em' }}
-              >
-                Recoverable Amount
-              </th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={3}
                   className="px-4 py-8 text-center text-xs"
                   style={{ color: '#cbd5e1' }}
                 >
@@ -157,18 +142,6 @@ function AccountsTable({
                       >
                         {row.risk_level}
                       </span>
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      style={{ color: '#94a3b8' }}
-                    >
-                      {row.kill_chain_stage}
-                    </td>
-                    <td
-                      className="px-4 py-3 tabular-nums"
-                      style={{ color: '#a855f7', fontWeight: 600 }}
-                    >
-                      {formatINR(row.damage_metrics?.recoverable_amount ?? 0)}
                     </td>
                   </tr>
                 )

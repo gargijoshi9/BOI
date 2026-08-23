@@ -17,9 +17,11 @@ interface RecentEvaluation {
   account_id: string
   risk_score: number
   risk_level: string
-  kill_chain_stage: string
   is_simulated: boolean
   timestamp: number
+  human_review?: {
+    confidence_band: string
+  }
 }
 
 const STORAGE_KEY = 'muleradar_recent_evaluations'
@@ -71,12 +73,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         account_id: result.account_id,
         risk_score: result.risk_score,
         risk_level: result.risk_level,
-        kill_chain_stage: result.kill_chain_stage,
         is_simulated: result.is_simulated,
         timestamp: Date.now(),
+        human_review: {
+          confidence_band: result.human_review?.confidence_band ?? 'REVIEW',
+        }
       })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to evaluate account'
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err.message || 'Failed to evaluate account'
       setEvaluationError(message)
       setCurrentAccount(null)
     } finally {

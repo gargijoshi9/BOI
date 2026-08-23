@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { RiskEvaluationResponse, ShapFeature, GraphNode } from '../api/client'
+import { RiskEvaluationResponse, ShapFeature, GraphNode, fetchAuditTrail, ReviewDecisionRecord } from '../api/client'
 
 interface InvestigationReportModalProps {
   account: RiskEvaluationResponse
@@ -25,12 +25,14 @@ export default function InvestigationReportModal({
 }: InvestigationReportModalProps) {
   const reportRef = useRef<HTMLDivElement>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [auditRecord, setAuditRecord] = useState<ReviewDecisionRecord | null>(null)
+
+  useEffect(() => {
+    fetchAuditTrail(account.account_id).then((records) => setAuditRecord(records[0] ?? null))
+  }, [account.account_id])
 
   if (!isOpen) return null
 
-  const recoverable = account.damage_metrics?.recoverable_amount ?? 0
-  const inTransit = account.damage_metrics?.in_transit_amount ?? 0
-  const totalExposure = recoverable + inTransit
   const shapList = account.shap_explanation ?? []
   const nodes = account.network_connections?.nodes ?? []
   const edges = account.network_connections?.edges ?? []
@@ -146,20 +148,18 @@ export default function InvestigationReportModal({
                     <tr className="border-b border-slate-200">
                       <td className="py-2 px-3 font-semibold bg-slate-50 w-1/4 border-r border-slate-200 text-slate-700">Account ID / No</td>
                       <td className="py-2 px-3 font-mono font-bold text-slate-900 border-r border-slate-200">AC-{account.account_id}</td>
-                      <td className="py-2 px-3 font-semibold bg-slate-50 w-1/4 border-r border-slate-200 text-slate-700">Risk Assessment</td>
-                      <td className="py-2 px-3 font-bold text-red-700">{account.risk_level.toUpperCase()} ({account.risk_score}/1000)</td>
+                      <td className="py-2 px-3 font-semibold bg-slate-50 w-1/4 border-r border-slate-200 text-slate-700">Account Type</td>
+                      <td className="py-2 px-3 font-bold text-slate-900">{account.account_type || 'Savings'}</td>
                     </tr>
                     <tr className="border-b border-slate-200">
-                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Fraud Probability</td>
-                      <td className="py-2 px-3 font-bold text-slate-900 border-r border-slate-200">{(account.risk_score / 10).toFixed(1)}%</td>
-                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Kill Chain Stage</td>
-                      <td className="py-2 px-3 font-semibold text-orange-700">{account.kill_chain_stage}</td>
+                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Customer Age</td>
+                      <td className="py-2 px-3 font-bold text-slate-900 border-r border-slate-200">{account.age || 'N/A'}</td>
+                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Occupation</td>
+                      <td className="py-2 px-3 font-semibold text-slate-900 capitalize">{account.occupation || 'N/A'}</td>
                     </tr>
                     <tr className="border-b border-slate-200">
-                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Inference Engine</td>
-                      <td className="py-2 px-3 text-slate-900 border-r border-slate-200">{account.is_simulated ? 'Simulated Model' : 'Live ML Ensemble v2.4'}</td>
-                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Target Typology</td>
-                      <td className="py-2 px-3 font-semibold text-red-800">Money Mule Account</td>
+                      <td className="py-2 px-3 font-semibold bg-slate-50 border-r border-slate-200 text-slate-700">Risk Assessment</td>
+                      <td colSpan={3} className="py-2 px-3 text-red-700 font-bold border-r border-slate-200">{account.risk_level.toUpperCase()}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -167,7 +167,7 @@ export default function InvestigationReportModal({
                 {/* Risk Gauge Bar */}
                 <div className="p-4 bg-slate-50 border border-slate-300 rounded-lg mb-6">
                   <div className="flex justify-between text-xs font-bold text-slate-700 mb-2">
-                    <span>MULE RISK SCORE</span>
+                    <span>INTERNAL RISK RATING</span>
                     <span className="text-red-700 font-mono text-sm">{account.risk_score} / 1000</span>
                   </div>
                   <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden flex">
@@ -190,15 +190,14 @@ export default function InvestigationReportModal({
                     Key Suspicious Findings
                   </h3>
                   <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1.5">
-                    <li>
-                      <strong>Rapid Pass-Through Behavior:</strong> Inbound transfers are immediately routed to debit cash-out nodes with minimal retention float.
-                    </li>
-                    <li>
-                      <strong>Transaction Deviation Spike:</strong> Significant deviation in 31-day credit/debit volume totals compared to customer historical baseline.
-                    </li>
-                    <li>
-                      <strong>Targeted Account Profile:</strong> Customer demographic alignment combined with rapid activation following prior dormancy.
-                    </li>
+                    {shapList.slice(0, 3).map((f: ShapFeature, idx: number) => (
+                      <li key={idx}>
+                        <strong>{f.display_name || f.feature}:</strong> {f.description || `Significant contribution to risk score (${f.contribution > 0 ? '+' : ''}${f.contribution.toFixed(4)}).`}
+                      </li>
+                    ))}
+                    {shapList.length === 0 && (
+                      <li>No specific feature findings available.</li>
+                    )}
                   </ul>
                 </div>
 
@@ -215,12 +214,14 @@ export default function InvestigationReportModal({
 
               {/* Page 1 Footer */}
               <div className="border-t border-slate-200 pt-2 flex justify-between text-[10px] text-slate-500">
-                <span>MuleRadar AI Intelligence Platform</span>
-                <span>Page 1 of 3</span>
+                <span>Bank of India - Internal Audit System</span>
+                <span>Page 1 of 2</span>
               </div>
             </div>
 
-            {/* PAGE 2: Risk & Explainability (SHAP attributions) */}
+
+
+            {/* PAGE 3: Network Risk, Financial Exposure & Compliance Sign-Off */}
             <div className="pdf-page w-[210mm] min-h-[297mm] h-[297mm] p-8 bg-white flex flex-col justify-between shadow-xl relative overflow-hidden box-border">
               <div>
                 {/* Header */}
@@ -232,160 +233,8 @@ export default function InvestigationReportModal({
                 {/* Section 2 Title */}
                 <div className="bg-slate-100 p-3 rounded-lg border border-slate-300 mb-6">
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                    2. Risk & Explainability (Tree-SHAP Attributions)
+                    2. Network Risk, Financial Exposure & Compliance Sign-Off
                   </h2>
-                </div>
-
-                {/* Model Architecture Ensemble Table */}
-                <div className="mb-6">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                    Ensemble Model Component Scores
-                  </h3>
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700 border-b border-slate-300 font-semibold">
-                        <th className="py-2 px-3 text-left">Model Algorithm</th>
-                        <th className="py-2 px-3 text-center">Weight</th>
-                        <th className="py-2 px-3 text-center">Raw Risk Score</th>
-                        <th className="py-2 px-3 text-left">Primary Fraud Pattern Focus</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      <tr>
-                        <td className="py-2 px-3 font-semibold text-slate-800">XGBoost Classifier</td>
-                        <td className="py-2 px-3 text-center">40%</td>
-                        <td className="py-2 px-3 text-center font-mono font-bold">{Math.round(account.risk_score * 0.95)} / 1000</td>
-                        <td className="py-2 px-3 text-slate-600">Non-linear feature interaction & ratio anomalies</td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-semibold text-slate-800">LightGBM Classifier</td>
-                        <td className="py-2 px-3 text-center">35%</td>
-                        <td className="py-2 px-3 text-center font-mono font-bold">{Math.round(account.risk_score * 1.02)} / 1000</td>
-                        <td className="py-2 px-3 text-slate-600">Leaf-wise split detection on transactional volumes</td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-semibold text-slate-800">CatBoost Classifier</td>
-                        <td className="py-2 px-3 text-center">25%</td>
-                        <td className="py-2 px-3 text-center font-mono font-bold">{Math.round(account.risk_score * 0.98)} / 1000</td>
-                        <td className="py-2 px-3 text-slate-600">Categorical demographic & occupation pattern shifts</td>
-                      </tr>
-                      <tr className="bg-slate-50 font-bold border-t-2 border-slate-300">
-                        <td className="py-2 px-3 text-slate-900">Stacked Meta-Learner (Blended)</td>
-                        <td className="py-2 px-3 text-center">100%</td>
-                        <td className="py-2 px-3 text-center font-mono text-red-700 text-sm">{account.risk_score} / 1000</td>
-                        <td className="py-2 px-3 text-slate-800">Final Calibrated Risk Score</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Top SHAP Risk Drivers */}
-                <div className="mb-6">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                    Top SHAP Feature Attributions (Plain English)
-                  </h3>
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700 border-b border-slate-300 font-semibold">
-                        <th className="py-2 px-3 text-left">Risk Factor Description</th>
-                        <th className="py-2 px-3 text-right">SHAP Impact</th>
-                        <th className="py-2 px-3 text-center">Direction</th>
-                        <th className="py-2 px-3 text-left">AML Risk Signal Context</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {shapList.slice(0, 5).map((f: ShapFeature, idx: number) => {
-                        const isPos = f.contribution > 0
-                        return (
-                          <tr key={idx}>
-                            <td className="py-2 px-3 font-semibold text-slate-800">{f.feature}</td>
-                            <td className={`py-2 px-3 text-right font-mono font-bold ${isPos ? 'text-red-600' : 'text-green-600'}`}>
-                              {isPos ? `+${f.contribution.toFixed(4)}` : f.contribution.toFixed(4)}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded ${isPos ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                                {isPos ? 'Increases Risk' : 'Decreases Risk'}
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-slate-600">
-                              {isPos ? 'Deviates significantly from normal peer group baseline' : 'Aligns with expected retail account activity'}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                      {shapList.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="py-3 px-3 text-center text-slate-500">
-                            No SHAP explanations available for this evaluation.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Behavioral & Fund Flow Shift */}
-                <div className="p-4 bg-slate-50 border border-slate-300 rounded-lg">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                    Behavioral Shift Summary
-                  </h3>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="bg-white p-2.5 rounded border border-slate-200">
-                      <span className="block text-[10px] text-slate-500 font-semibold uppercase">Pass-Through Velocity</span>
-                      <span className="text-sm font-bold text-red-700">0.94 (High)</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded border border-slate-200">
-                      <span className="block text-[10px] text-slate-500 font-semibold uppercase">Fund Concentration</span>
-                      <span className="text-sm font-bold text-orange-600">Single Source</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded border border-slate-200">
-                      <span className="block text-[10px] text-slate-500 font-semibold uppercase">Prior Dormancy</span>
-                      <span className="text-sm font-bold text-slate-800">45 Days Inactive</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Page 2 Footer */}
-              <div className="border-t border-slate-200 pt-2 flex justify-between text-[10px] text-slate-500">
-                <span>MuleRadar AI Intelligence Platform</span>
-                <span>Page 2 of 3</span>
-              </div>
-            </div>
-
-            {/* PAGE 3: Network Risk, Financial Exposure & Compliance Sign-Off */}
-            <div className="pdf-page w-[210mm] min-h-[297mm] h-[297mm] p-8 bg-white flex flex-col justify-between shadow-xl relative overflow-hidden box-border">
-              <div>
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-6">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Bank of India — AML Unit</span>
-                  <span className="text-xs text-slate-500">Case Ref: CASE-BOI-2026-{account.account_id}</span>
-                </div>
-
-                {/* Section 3 Title */}
-                <div className="bg-slate-100 p-3 rounded-lg border border-slate-300 mb-6">
-                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                    3. Network Risk, Financial Damage & Compliance Sign-Off
-                  </h2>
-                </div>
-
-                {/* Financial Exposure & Recovery Breakdown */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg">
-                    <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Recoverable Now</span>
-                    <span className="text-lg font-black text-emerald-900">{formatINR(recoverable)}</span>
-                    <span className="block text-[9px] text-emerald-700 mt-1">Available in account for freeze</span>
-                  </div>
-                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg">
-                    <span className="block text-[10px] font-bold text-amber-800 uppercase tracking-wider">In Transit</span>
-                    <span className="text-lg font-black text-amber-900">{formatINR(inTransit)}</span>
-                    <span className="block text-[9px] text-amber-700 mt-1">Active debit channel transfers</span>
-                  </div>
-                  <div className="p-3 bg-red-50 border border-red-300 rounded-lg">
-                    <span className="block text-[10px] font-bold text-red-800 uppercase tracking-wider">Total Exposure</span>
-                    <span className="text-lg font-black text-red-900">{formatINR(totalExposure)}</span>
-                    <span className="block text-[9px] text-red-700 mt-1">Total estimated fraud volume</span>
-                  </div>
                 </div>
 
                 {/* Connected Counterparties Table */}
@@ -399,7 +248,6 @@ export default function InvestigationReportModal({
                         <th className="py-2 px-3 text-left">Node ID</th>
                         <th className="py-2 px-3 text-center">Node Role</th>
                         <th className="py-2 px-3 text-right">Transfer Volume</th>
-                        <th className="py-2 px-3 text-center">Fraud DNA Match</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -414,62 +262,37 @@ export default function InvestigationReportModal({
                           <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
                             {formatINR(edges[idx]?.amount ?? 125000)}
                           </td>
-                          <td className="py-2 px-3 text-center font-bold text-red-700">92% Match</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                {/* Section 4: Compliance & Regulatory Actions Checklist */}
+                {/* Section 4: Compliance & Investigator Decision */}
                 <div className="mb-6 p-4 bg-slate-50 border border-slate-300 rounded-lg">
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b pb-1">
-                    Regulatory Compliance Checklist
+                    Investigator Decision Status
                   </h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked readOnly className="accent-red-800" />
-                      <span>PMLA 2002 Debit Freeze Executed</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked readOnly className="accent-red-800" />
-                      <span>FIU-IND STR Drafted</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked readOnly className="accent-red-800" />
-                      <span>RBI Cyber Fraud Hotline Alerted</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked readOnly className="accent-red-800" />
-                      <span>Section 91 CrPC Notice Sent</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Investigator Decision & Sign-Off Box */}
-                <div className="p-4 border-2 border-slate-800 rounded-lg bg-slate-50 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Official Investigator Sign-Off
-                    </h3>
-                    <p className="text-[11px] text-slate-600 mt-1">
-                      Investigator: <strong>Senior AML Officer</strong> | ID: <strong>BOI-AML-8842</strong>
+                  {auditRecord ? (
+                    <div className="text-xs text-slate-700 space-y-1">
+                      <p><strong>Decision:</strong> {auditRecord.decision.replace('_', ' ').toUpperCase()}</p>
+                      <p><strong>Reviewer:</strong> {auditRecord.reviewer_name}</p>
+                      <p><strong>Timestamp:</strong> {auditRecord.timestamp}</p>
+                      {auditRecord.note && <p><strong>Note:</strong> {auditRecord.note}</p>}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-700 font-semibold">
+                      ⚠ No investigator decision recorded yet for this account. This report reflects the
+                      automated model output only and has not been reviewed or approved by compliance staff.
                     </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Decision: <strong className="text-red-700 uppercase">Confirmed Money Mule — Permanent Freeze & Legal Referral</strong>
-                    </p>
-                  </div>
-                  <div className="w-36 h-16 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center p-1 text-center bg-white">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Official Stamp / Seal</span>
-                    <span className="text-[10px] font-mono text-red-900 font-bold mt-1">BOI AML APPROVED</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* Page 3 Footer */}
+              {/* Page 2 Footer */}
               <div className="border-t border-slate-200 pt-2 flex justify-between text-[10px] text-slate-500">
-                <span>MuleRadar AI Intelligence Platform</span>
-                <span>Page 3 of 3</span>
+                <span>Bank of India - Internal Audit System</span>
+                <span>Page 2 of 2</span>
               </div>
             </div>
           </div>

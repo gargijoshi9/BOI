@@ -17,13 +17,14 @@ function TopBar({ onMenuClick }: TopBarProps) {
       })
       .catch(() => {
         if (cancelled) return
+        setHealth({ status: 'offline', mode: 'Disconnected', models: [] })
       })
     return () => {
       cancelled = true
     }
   }, [])
 
-  const isHealthy = health?.status === 'healthy'
+  const isHealthy = health?.status === 'online' || health?.status === 'healthy'
   const isConnecting = health === null
 
   return (
@@ -68,10 +69,12 @@ function TopBar({ onMenuClick }: TopBarProps) {
           {isHealthy ? (
             <>
               <span>LIVE</span>
-              <span className="text-foreground-muted">— {health?.mode}</span>
+              <span className="text-foreground-muted">— {health?.ml_engine || health?.mode}</span>
             </>
-          ) : (
+          ) : isConnecting ? (
             <span className="text-foreground-muted">Connecting...</span>
+          ) : (
+            <span className="text-foreground-muted">OFFLINE</span>
           )}
         </span>
       </div>

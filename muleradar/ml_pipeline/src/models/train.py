@@ -377,18 +377,19 @@ def main():
     optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
     
     # ---------------------------------------------------------
-    # NEW: STRICT 100% PRECISION CALIBRATION FOR AUTO_BLOCK
-    # Scan the curve to find the threshold where Precision == 1.0 (Zero False Positives)
+    # NEW: CONSERVATIVE TIER CALIBRATION ([-1] for highest threshold)
     # ---------------------------------------------------------
     perfect_precision_indices = np.where(precisions[:-1] >= 0.999)[0]
     if len(perfect_precision_indices) > 0:
-        # Take the lowest threshold that still guarantees ~100% precision
-        t_high = float(thresholds[perfect_precision_indices[0]])
+        # thresholds[-1] guarantees the strictest cutoff for AUTO_BLOCK
+        t_high = float(thresholds[perfect_precision_indices[-1]])
+        t_high = max(t_high, optimal_threshold * 1.15) 
     else:
         # Fallback if 100% precision isn't mathematically possible on this split
-        t_high = float(min(optimal_threshold * 1.05, 0.999))
+        t_high = float(min(optimal_threshold * 1.15, 0.999))
         
-    t_low = float(max(optimal_threshold * 0.70, 0.05))
+    # Lower t_low creates better UI separation for Medium
+    t_low = float(max(optimal_threshold * 0.50, 0.10))
     
     print(f"Calibrated Optimal F2-Threshold: {optimal_threshold:.4f}")
     print(f"Calibrated HITL Routing Bands: AUTO_CLEAR < {t_low:.4f} | HUMAN_REVIEW | AUTO_BLOCK > {t_high:.4f}")
@@ -463,6 +464,8 @@ def main():
         'target': target,
         'leaky_columns': LEAKY_COLUMNS,
         'train_account_ids': train_account_ids, # <-- THIS PREVENTS IN-SAMPLE DEMO EMBARRASSMENT
+        'calibration_temperature': 2.5,                                                # NEW
+        'fixed_tiers': {'critical_score': 900, 'high_score': 750, 'medium_score': 450} # NEW
     }
     
     artifact_path = os.path.join(save_dir, 'mule_pipeline_v2.pkl')

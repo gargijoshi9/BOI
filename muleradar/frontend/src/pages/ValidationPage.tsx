@@ -1,7 +1,6 @@
 import { useState, useRef, ChangeEvent, DragEvent } from 'react'
 import PageShell from '../components/PageShell'
 import { validateDataset, ValidationResponse, RiskEvaluationResponse, RiskLevel } from '../api/client'
-import { formatINR } from '../components/DamageForecastWidget'
 
 const RISK_COLORS: Record<RiskLevel, string> = {
   Critical: '#ef4444',
@@ -267,9 +266,7 @@ function ValidationPage() {
                       <th className="px-5 py-3.5 font-semibold">Account ID</th>
                       <th className="px-5 py-3.5 font-semibold">Risk Score</th>
                       <th className="px-5 py-3.5 font-semibold">Risk Level</th>
-                      <th className="px-5 py-3.5 font-semibold">Kill Chain Stage</th>
                       <th className="px-5 py-3.5 font-semibold">HITL Band</th>
-                      <th className="px-5 py-3.5 font-semibold">Damage Exposure</th>
                       <th className="px-5 py-3.5 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
@@ -301,14 +298,10 @@ function ValidationPage() {
                               {row.risk_level}
                             </span>
                           </td>
-                          <td className="px-5 py-3.5 font-medium text-foreground-muted">{row.kill_chain_stage}</td>
                           <td className="px-5 py-3.5">
                             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-background border border-border/60 text-foreground-muted">
                               {row.human_review.confidence_band}
                             </span>
-                          </td>
-                          <td className="px-5 py-3.5 font-mono text-foreground-muted">
-                            {formatINR(row.damage_metrics.recoverable_amount + row.damage_metrics.in_transit_amount)}
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <button
@@ -361,18 +354,8 @@ function ValidationPage() {
                   </p>
                 </div>
                 <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-1">
-                  <p className="text-xs text-foreground-muted uppercase">Kill Chain Stage</p>
-                  <p className="text-lg font-bold text-foreground">{selectedItem.kill_chain_stage}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-1">
                   <p className="text-xs text-foreground-muted uppercase">HITL Confidence Band</p>
                   <p className="text-sm font-mono font-semibold text-accent">{selectedItem.human_review.confidence_band}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-1">
-                  <p className="text-xs text-foreground-muted uppercase">Estimated Damage</p>
-                  <p className="text-sm font-mono font-semibold text-foreground">
-                    {formatINR(selectedItem.damage_metrics.recoverable_amount)}
-                  </p>
                 </div>
               </div>
 

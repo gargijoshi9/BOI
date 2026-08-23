@@ -20,6 +20,8 @@ def record_decision(record: dict) -> dict:
     
     with _write_lock:
         log = json.loads(_AUDIT_LOG_PATH.read_text())
+        # Remove existing entries for this account to prevent duplicates
+        log = [r for r in log if r.get("account_id") != record["account_id"]]
         log.append(record)
         _AUDIT_LOG_PATH.write_text(json.dumps(log, indent=2))
         

@@ -14,12 +14,8 @@ const TOP_FEATURES: FeatureHealth[] = [
   { name: 'pass_through_ratio', category: 'Behavioral DNA', shapImportance: 0.3421, driftStatus: 'Stable', purgedProxy: false },
   { name: 'sudden_activation_score', category: 'Behavioral DNA', shapImportance: 0.2894, driftStatus: 'Stable', purgedProxy: false },
   { name: 'narrow_network_interaction', category: 'Graph Network', shapImportance: 0.2450, driftStatus: 'Stable', purgedProxy: false },
-  { name: 'F0004_was_missing', category: 'Shadow Missingness', shapImportance: 0.1982, driftStatus: 'Stable', purgedProxy: false },
   { name: 'cash_drain_velocity', category: 'Fraud Kill Chain', shapImportance: 0.1764, driftStatus: 'Stable', purgedProxy: false },
-  { name: 'F1002_log_transformed', category: 'Normalized Ratio', shapImportance: 0.1432, driftStatus: 'Low Drift', purgedProxy: false },
   { name: 'counterparty_entropy', category: 'Graph Network', shapImportance: 0.1289, driftStatus: 'Stable', purgedProxy: false },
-  { name: 'F2230_timestamp_proxy', category: 'Deceptive Flag', shapImportance: 0.0, driftStatus: 'Alert', purgedProxy: true },
-  { name: 'admin_freeze_status', category: 'Deceptive Flag', shapImportance: 0.0, driftStatus: 'Alert', purgedProxy: true },
 ]
 
 function MonitorPage() {
@@ -34,7 +30,7 @@ function MonitorPage() {
         const healthData = await fetchHealth()
         setHealth(healthData)
         
-        const accountsData = await fetchAccounts(500, true)
+        const accountsData = await fetchAccounts(15000, true)
         setAccounts(accountsData)
       } catch (err) {
         console.error('Failed to load health/monitoring data', err)
@@ -47,9 +43,9 @@ function MonitorPage() {
 
   // Calculate distribution bands from accounts
   const total = accounts.length || 1
-  const autoClearCount = accounts.filter(a => a.risk_score < 0.2144).length
-  const humanReviewCount = accounts.filter(a => a.risk_score >= 0.2144 && a.risk_score <= 0.3063).length
-  const autoBlockCount = accounts.filter(a => a.risk_score > 0.3063).length
+  const autoClearCount = accounts.filter(a => a.human_review?.confidence_band === 'AUTO_CLEAR').length
+  const humanReviewCount = accounts.filter(a => a.human_review?.confidence_band === 'HUMAN_REVIEW').length
+  const autoBlockCount = accounts.filter(a => a.human_review?.confidence_band === 'AUTO_BLOCK').length
 
   return (
     <PageShell>
@@ -93,7 +89,7 @@ function MonitorPage() {
           <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl space-y-2">
             <p className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Test ROC-AUC Metric</p>
             <div className="flex items-baseline justify-between">
-              <span className="text-3xl font-bold text-teal-400 font-mono">0.9983</span>
+              <span className="text-3xl font-bold text-teal-400 font-mono">0.9802</span>
               <span className="text-xs text-teal-400 font-medium">+0.04 vs Baseline</span>
             </div>
             <p className="text-[11px] text-foreground-muted">Strict Hold-Out Evaluation Split</p>
@@ -102,7 +98,7 @@ function MonitorPage() {
           <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl space-y-2">
             <p className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Test PR-AUC Metric</p>
             <div className="flex items-baseline justify-between">
-              <span className="text-3xl font-bold text-accent font-mono">0.9090</span>
+              <span className="text-3xl font-bold text-accent font-mono">0.7966</span>
               <span className="text-xs text-accent font-medium">Imbalance Resilient</span>
             </div>
             <p className="text-[11px] text-foreground-muted">0.89% Mule Base Rate Dataset</p>
@@ -111,7 +107,7 @@ function MonitorPage() {
           <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl space-y-2">
             <p className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Calibrated F2 Threshold</p>
             <div className="flex items-baseline justify-between">
-              <span className="text-3xl font-bold text-orange-400 font-mono">0.3063</span>
+              <span className="text-3xl font-bold text-orange-400 font-mono">0.9860</span>
               <span className="text-xs text-orange-400 font-medium">Recall Optimized</span>
             </div>
             <p className="text-[11px] text-foreground-muted">Prioritizes Zero False Negatives</p>
@@ -161,7 +157,7 @@ function MonitorPage() {
             <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20 space-y-1">
               <div className="flex items-center justify-between text-xs font-bold text-teal-400">
                 <span>AUTO_CLEAR</span>
-                <span>&lt; 0.2144</span>
+                <span>&lt; 450</span>
               </div>
               <p className="text-xl font-bold text-foreground font-mono">{autoClearCount} <span className="text-xs text-foreground-muted font-normal">({((autoClearCount / total) * 100).toFixed(1)}%)</span></p>
               <p className="text-[11px] text-teal-300/80">Low risk accounts cleared with instant automated processing.</p>
@@ -170,7 +166,7 @@ function MonitorPage() {
             <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 space-y-1">
               <div className="flex items-center justify-between text-xs font-bold text-yellow-400">
                 <span>HUMAN_REVIEW</span>
-                <span>0.2144 - 0.3063</span>
+                <span>450 - 899</span>
               </div>
               <p className="text-xl font-bold text-foreground font-mono">{humanReviewCount} <span className="text-xs text-foreground-muted font-normal">({((humanReviewCount / total) * 100).toFixed(1)}%)</span></p>
               <p className="text-[11px] text-yellow-300/80">Borderline accounts routed directly to HITL Compliance Review Queue.</p>
@@ -179,7 +175,7 @@ function MonitorPage() {
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 space-y-1">
               <div className="flex items-center justify-between text-xs font-bold text-red-400">
                 <span>AUTO_BLOCK</span>
-                <span>&gt; 0.3063</span>
+                <span>&gt;= 900</span>
               </div>
               <p className="text-xl font-bold text-foreground font-mono">{autoBlockCount} <span className="text-xs text-foreground-muted font-normal">({((autoBlockCount / total) * 100).toFixed(1)}%)</span></p>
               <p className="text-[11px] text-red-300/80">Confirmed high probability mule accounts flagged for auto debit freeze.</p>

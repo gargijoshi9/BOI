@@ -26,11 +26,12 @@ async def get_all_accounts(limit: Optional[int] = None, held_out_only: bool = Tr
 async def evaluate_account(account_id: str):
     try:
         result = mule_analyzer.evaluate_account(account_id)
-        if not result:
-            raise HTTPException(status_code=404, detail="Account not found and simulator failed.")
-        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+        
+    if not result:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    return result
 
 @router.post("/validate", response_model=ValidationResponse)
 async def validate_dataset(file: UploadFile = File(...)):
@@ -101,7 +102,7 @@ async def get_review_queue(limit: int = 100, held_out_only: bool = True):
         queue_items = []
         for a in accounts:
             hr = a.get("human_review", {})
-            if hr.get("requires_review") and a["account_id"] not in resolved_ids:
+            if hr.get("requires_review") and a.get("risk_level") in ("High", "Medium") and a["account_id"] not in resolved_ids:
                 queue_items.append(
                     ReviewQueueItem(
                         account_id=a["account_id"],
@@ -121,14 +122,18 @@ async def get_review_queue(limit: int = 100, held_out_only: bool = True):
 
 @router.post("/review-queue/{account_id}/resolve", response_model=ReviewDecisionRecord)
 async def resolve_review(account_id: str, req: ReviewDecisionRequest):
+    if req.decision not in ("confirm_mule", "clear", "escalate"):
+        raise HTTPException(status_code=400, detail="Invalid decision")
+
     try:
-        if req.decision not in ("confirm_mule", "clear", "escalate"):
-            raise HTTPException(status_code=400, detail="Invalid decision")
-
         report = mule_analyzer.evaluate_account(account_id)
-        if not report:
-            raise HTTPException(status_code=404, detail="Account not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    if not report:
+        raise HTTPException(status_code=404, detail="Account not found")
 
+    try:
         # Save to the JSON audit trail
         record = audit_trail.record_decision({
             "account_id": account_id,
