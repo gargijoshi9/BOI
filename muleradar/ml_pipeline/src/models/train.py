@@ -98,6 +98,7 @@ def main():
     dataset_path = resolve_dataset_path('boi_dataset.csv')
     print(f"Loading dataset from: {dataset_path}")
     df = pd.read_csv(dataset_path)
+    df = df.dropna(subset=['F3924']).copy()
     target = 'F3924'
     time_col = 'F2230'
 

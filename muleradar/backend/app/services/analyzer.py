@@ -111,9 +111,26 @@ class MuleRiskAnalyzer:
 
     def _get_account_row(self, account_id: str) -> Optional[pd.DataFrame]:
         df = self._load_dataset()
+
         if df is None or 'account_id' not in df.columns:
             return None
-        row = df[df['account_id'] == str(account_id)]
+
+        # Normalize account IDs so that:
+        # "14", "14.0", 14 and 14.0 all match
+        requested_id = str(account_id).strip()
+
+        if requested_id.endswith(".0"):
+            requested_id = requested_id[:-2]
+
+        normalized_ids = (
+            df['account_id']
+            .astype(str)
+            .str.strip()
+            .str.replace(r'\.0$', '', regex=True)
+        )
+
+        row = df[normalized_ids == requested_id]
+
         return None if row.empty else row
 
     # =======================================================================
