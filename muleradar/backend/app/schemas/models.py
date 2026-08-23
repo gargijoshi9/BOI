@@ -1,74 +1,119 @@
-from pydantic import BaseModel, Field
 from typing import List, Optional
+from pydantic import BaseModel, Field
 
-
-class DamageMetrics(BaseModel):
-    recoverable_amount: float = Field(
-        ..., description="Potential funds that can be frozen/recovered"
-    )
-    in_transit_amount: float = Field(
-        ..., description="Funds currently moving through channels"
-    )
-    is_estimated: bool = Field(
-        default=True,
-        description=(
-            "True if these figures are derived/estimated from available "
-            "feature values rather than verified transaction records. "
-            "Analysts should treat estimated figures as directional, not "
-            "authoritative, until confirmed against source transaction data."
-        ),
-    )
-    estimation_note: Optional[str] = Field(
-        default=None,
-        description="Human-readable explanation of how the estimate was derived, if applicable.",
-    )
-
+# ==========================================
+# CORE EVALUATION SCHEMAS
+# ==========================================
 
 class ShapContribution(BaseModel):
-    feature: str = Field(..., description="Name of the behavior flag")
-    contribution: float = Field(..., description="Impact weight on the final risk score")
+    feature: str
+    contribution: float
+    display_name: Optional[str] = None
+    description: Optional[str] = None
 
-
-class NetworkNode(BaseModel):
+class GraphNode(BaseModel):
     id: str
-    type: str  # e.g., "mule", "smurf", "layering_layer", "cash_out", "relay", "normal"
+    type: str
 
-
-class NetworkEdge(BaseModel):
+class GraphEdge(BaseModel):
     source: str
     target: str
-    amount: float
-
+    amount: Optional[float] = None
 
 class NetworkGraph(BaseModel):
-    nodes: List[NetworkNode]
-    edges: List[NetworkEdge]
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+    centrality_score: Optional[float] = None
+    clustering_coefficient: Optional[float] = None
 
+class HumanReviewInfo(BaseModel):
+    requires_review: bool = Field(
+        ...,
+        description="True if this account should be routed to a human investigator before taking action."
+    )
+    review_reason: Optional[str] = Field(
+        default=None,
+        description="Reason for review: borderline_confidence or anomaly_override."
+    )
+    confidence_band: str = Field(
+        ...,
+        description="AUTO_CLEAR, HUMAN_REVIEW, or AUTO_BLOCK."
+    )
+    anomaly_flagged: bool = Field(
+        default=False,
+        description="True if Isolation Forest classified the account as a distribution outlier."
+    )
 
 class RiskEvaluationResponse(BaseModel):
     account_id: str
-    risk_score: int = Field(..., ge=0, le=1000, description="Risk score scaled from 0 to 1000")
-    risk_level: str  # "Low", "Medium", "High", "Critical"
-    kill_chain_stage: str  # "Monitoring"/"None", "Placement", "Layering", "Cash-Out", etc.
-    damage_metrics: DamageMetrics
+    # ----- UI Columns -----
+    account_type: str = "Unknown"
+    occupation: str = "Unknown"
+    age: int = 0
+    anomaly_score: float = 0.0
+    model_probability: float = 0.0
+    model_component_scores: Optional[dict] = Field(
+        default=None,
+        description="Real per-model probabilities (xgb/lgbm/cat/if_score) and whether the final score used stacking or a blend - never fabricated weights."
+    )
+    # ----------------------
+    risk_score: int = Field(..., ge=0, le=1000)
+    risk_level: str
     shap_explanation: List[ShapContribution]
     network_connections: NetworkGraph
-    is_simulated: bool = Field(
+    human_review: HumanReviewInfo
+    is_simulated: bool = Field(default=False)
+    # --- ADDED HONESTY FLAG ---
+    was_seen_during_training: bool = Field(
         default=False,
         description=(
-            "True if this result came from the deterministic simulator "
-            "fallback (no trained model artifacts, or the account_id was "
-            "not found in the source dataset), rather than the live "
-            "ensemble model. The frontend should visibly flag simulated "
-            "results so they are never mistaken for verified predictions."
-        ),
+            "True if this account was part of the model's training set. "
+            "Scores for these accounts reflect in-sample fit, not genuine "
+            "held-out generalization - never present these as verified "
+            "predictions in the UI without this caveat."
+        )
     )
 
+# ==========================================
+# CSV VALIDATION SCHEMAS
+# ==========================================
 
-class CopilotResponse(BaseModel):
+class ValidationWarnings(BaseModel):
+    missing_columns: List[str] = Field(...)
+    extra_columns_ignored: int = Field(...)
+
+class ValidationResponse(BaseModel):
+    filename: str
+    n_rows: int
+    warnings: ValidationWarnings
+    methodology_note: str = Field(...)
+    results: List[RiskEvaluationResponse]
+
+# ==========================================
+# HUMAN-IN-THE-LOOP (HITL) SCHEMAS 
+# ==========================================
+
+class ReviewQueueItem(BaseModel):
     account_id: str
-    summary: str
+    risk_score: int
+    risk_level: str
+    review_reason: Optional[str] = None
+    queued_at: str
 
+class ReviewQueueResponse(BaseModel):
+    total: int
+    items: List[ReviewQueueItem]
 
-class BatchEvaluationRequest(BaseModel):
-    account_ids: List[str] = Field(..., description="List of account IDs to evaluate in a batch")
+class ReviewDecisionRequest(BaseModel):
+    decision: str = Field(..., description="One of: confirm_mule, clear, escalate")
+    reviewer_name: str
+    note: Optional[str] = ""
+
+class ReviewDecisionRecord(BaseModel):
+    account_id: str
+    decision: str
+    reviewer_name: str
+    note: str
+    model_risk_score: int
+    model_review_reason: Optional[str]
+    timestamp: str

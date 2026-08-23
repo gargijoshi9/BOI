@@ -1,14 +1,10 @@
 import {
-  DamageMetrics,
-  KillChainStage,
   NetworkConnections,
   RiskEvaluationResponse,
   RiskLevel,
   ShapFeature,
 } from '../api/client'
 import AccountsTable, { AccountsTableRow } from './AccountsTable'
-import DamageForecastWidget from './DamageForecastWidget'
-import KillChainWidget from './KillChainWidget'
 import NetworkGraph from './NetworkGraph'
 import RiskScoreWidget from './RiskScoreWidget'
 import ShapWidget from './ShapWidget'
@@ -16,8 +12,6 @@ import ShapWidget from './ShapWidget'
 interface MainGridProps {
   riskScore?: number
   riskLevel?: RiskLevel
-  killChainStage?: KillChainStage
-  damageMetrics?: DamageMetrics
   shapExplanation?: ShapFeature[]
   networkConnections?: NetworkConnections
   isSimulated?: boolean
@@ -30,15 +24,13 @@ interface MainGridProps {
 function MainGrid(props: MainGridProps) {
   return (
     <section className="flex h-full flex-1 flex-col gap-8 overflow-y-auto p-6">
-      {/* Row 1 — three widgets */}
+      {/* Row 1 — risk widget */}
       <div className="flex flex-row gap-5">
         <RiskScoreWidget
           riskScore={props.riskScore}
           riskLevel={props.riskLevel}
           isSimulated={props.isSimulated}
         />
-        <KillChainWidget killChainStage={props.killChainStage} />
-        <DamageForecastWidget damageMetrics={props.damageMetrics} />
       </div>
 
       {/* Row 2 — SHAP explanation */}

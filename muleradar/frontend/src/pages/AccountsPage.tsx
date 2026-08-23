@@ -1,8 +1,17 @@
 import { useEffect, useState, useMemo } from 'react'
 import PageShell from '../components/PageShell'
-import { RiskLevel, fetchAccounts, RiskEvaluationResponse } from '../api/client'
-import { formatINR } from '../components/DamageForecastWidget'
+import { RiskLevel, fetchAccounts, RiskEvaluationResponse, resolveReview } from '../api/client'
 import { useApp } from '../context/AppContext'
+import InvestigationReportModal from '../components/InvestigationReportModal'
+
+// Extend the response type locally to accommodate the new backend fields
+type ExtendedAccount = RiskEvaluationResponse & {
+  account_type?: string;
+  occupation?: string;
+  age?: number;
+  anomaly_score?: number;
+  model_probability?: number;
+}
 
 type RiskFilter = 'ALL' | RiskLevel
 
@@ -22,23 +31,43 @@ const RISK_GLOWS: Record<RiskLevel, string> = {
   Low: '0 0 12px rgba(34, 197, 94, 0.4)',
 }
 
+const getRiskBarColor = (score: number) => {
+  if (score >= 900) return 'bg-[#ef4444]';    
+  if (score >= 750) return 'bg-[#f97316]';    
+  if (score >= 450) return 'bg-[#eab308]';    
+  return 'bg-[#22c55e]';                      
+};
+
 function AccountsPage() {
   const { currentAccount, evaluateAccount } = useApp()
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortConfig, setSortConfig] = useState<{ key: keyof RiskEvaluationResponse; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
-  const [accounts, setAccounts] = useState<RiskEvaluationResponse[]>([])
+  const [hideInSample, setHideInSample] = useState(true)
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ExtendedAccount; direction: 'asc' | 'desc' } | null>({ key: 'risk_score', direction: 'desc' })
+  const [accounts, setAccounts] = useState<ExtendedAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
   const [showDetail, setShowDetail] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [isReportOpen, setIsReportOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean; decision: 'confirm_mule' | 'clear' | 'escalate'; reviewerName: string; note: string } | null>(null)
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
 
   useEffect(() => {
     async function loadAccounts() {
       try {
         setLoading(true)
-        const data = await fetchAccounts(200)
-        setAccounts(data)
+        const data = await fetchAccounts(15000, hideInSample)
+        setAccounts(data as ExtendedAccount[])
       } catch (err) {
         setError('Failed to fetch accounts from backend')
       } finally {
@@ -46,35 +75,26 @@ function AccountsPage() {
       }
     }
     loadAccounts()
-  }, [])
+  }, [hideInSample])
 
   const filteredAccounts = useMemo(() => {
     let result = [...accounts]
-
-    // Apply risk filter
     if (filter !== 'ALL') {
       result = result.filter((r) => r.risk_level === filter)
     }
-
-    // Apply search
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase()
       result = result.filter((r) =>
-        r.account_id.toLowerCase().includes(query) ||
-        r.kill_chain_stage.toLowerCase().includes(query)
+        r.account_id.toLowerCase().includes(query)
       )
     }
-
-    // Apply sort
     if (sortConfig) {
       result.sort((a, b) => {
         const aVal = a[sortConfig.key]
         const bVal = b[sortConfig.key]
         if (aVal === undefined || bVal === undefined) return 0
         if (typeof aVal === 'string' && typeof bVal === 'string') {
-          return sortConfig.direction === 'asc'
-            ? aVal.localeCompare(bVal)
-            : bVal.localeCompare(aVal)
+          return sortConfig.direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
         }
         if (typeof aVal === 'number' && typeof bVal === 'number') {
           return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal
@@ -82,7 +102,6 @@ function AccountsPage() {
         return 0
       })
     }
-
     return result
   }, [accounts, filter, searchQuery, sortConfig])
 
@@ -92,23 +111,21 @@ function AccountsPage() {
     high: accounts.filter((a) => a.risk_level === 'High').length,
     medium: accounts.filter((a) => a.risk_level === 'Medium').length,
     low: accounts.filter((a) => a.risk_level === 'Low').length,
-    totalExposure: accounts.reduce((sum, a) => sum + (a.damage_metrics?.recoverable_amount ?? 0) + (a.damage_metrics?.in_transit_amount ?? 0), 0),
     simulated: accounts.filter((a) => a.is_simulated).length,
   }), [accounts])
 
-  function handleSort(key: keyof RiskEvaluationResponse) {
+  function handleSort(key: keyof ExtendedAccount) {
     setSortConfig((prev) => ({
       key,
       direction: prev?.key === key && prev.direction === 'desc' ? 'asc' : 'desc',
     }))
   }
 
-  async function handleRowClick(account: RiskEvaluationResponse) {
+  async function handleRowClick(account: ExtendedAccount) {
     setDetailLoading(true)
+    setShowDetail(true)
     try {
-      // Use global evaluateAccount to update currentAccount across all pages
       await evaluateAccount(account.account_id)
-      setShowDetail(true)
     } catch (err) {
       console.error('Failed to fetch account details:', err)
     } finally {
@@ -116,10 +133,332 @@ function AccountsPage() {
     }
   }
 
+  const renderTierBadge = (level: string) => {
+    if (level.toUpperCase() === 'CRITICAL') {
+      return (
+        <span className="border border-rose-500/50 text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase" style={{ boxShadow: RISK_GLOWS.Critical }}>
+          {level}
+        </span>
+      );
+    }
+    if (level.toUpperCase() === 'HIGH') {
+      return (
+        <span className="border border-orange-500/50 text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+          {level}
+        </span>
+      );
+    }
+    if (level.toUpperCase() === 'MEDIUM') {
+      return (
+        <span className="border border-amber-500/50 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+          {level}
+        </span>
+      );
+    }
+    return (
+      <span className="border border-slate-600 text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+        {level}
+      </span>
+    );
+  };
+
+  const renderStatus = (acc: ExtendedAccount) => {
+    if (!acc.human_review) return <span className="text-slate-500">Unknown</span>;
+    if (acc.human_review.requires_review) return <span className="text-slate-400">Under Review</span>;
+    if (acc.human_review.confidence_band === 'AUTO_BLOCK') return <span className="text-rose-400">Blocked</span>;
+    return <span className="text-emerald-400">Cleared</span>;
+  };
+
+  // =======================================================================
+  // FULL PAGE DETAIL VIEW
+  // =======================================================================
+  if (showDetail && currentAccount) {
+    
+    // --- SHAP NORMALIZATION LOGIC ---
+    let displayShap = [...(currentAccount.shap_explanation || [])];
+    const sumShap = displayShap.reduce((acc, f) => acc + f.contribution, 0);
+
+    // If an account is High Risk but XGBoost output negative SHAP (base margin artifact), visually invert it
+    if (currentAccount.risk_score >= 500 && sumShap < 0) {
+      displayShap = displayShap.map(f => ({ ...f, contribution: -f.contribution }));
+    } else if (currentAccount.risk_score < 500 && sumShap > 0) {
+      displayShap = displayShap.map(f => ({ ...f, contribution: -f.contribution }));
+    }
+
+    // Now extract the top drivers accurately
+    const topPositiveFeatures = displayShap
+      .filter((f) => f.contribution > 0)
+      .sort((a, b) => b.contribution - a.contribution)
+      .slice(0, 3)
+      .map((f) => f.feature);
+
+    const shapSummary = topPositiveFeatures.length > 0
+      ? `Flagged primarily due to ${topPositiveFeatures.join(', ')}, against an occupation profile of '${currentAccount.occupation || 'Unknown'}' and account type '${currentAccount.account_type || 'Unknown'}'.`
+      : `Risk assessment derived from standard transaction velocity and structural patterns.`;
+
+    const summaryBarColor = topPositiveFeatures.length > 0 ? 'bg-rose-500' : 'bg-emerald-500';
+    const maxAbs = Math.max(...(displayShap.map(f => Math.abs(f.contribution)) || [1]));
+
+    return (
+      <PageShell>
+        {/* Action Modal */}
+        {actionModal?.isOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-[#121620] border border-slate-800 rounded-2xl p-6 shadow-2xl w-full max-w-md animate-fade-in relative">
+              <h3 className="text-xl font-bold text-slate-100 mb-2">Review Decision</h3>
+              <p className="text-sm text-slate-400 mb-6">Please provide your signature and notes for the compliance audit log.</p>
+              
+              <div className="flex flex-col gap-4 mb-6">
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Reviewer Name</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-[#0b0f19] border border-slate-700 text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-cyan-500" 
+                    placeholder="e.g. Jane Doe"
+                    value={actionModal.reviewerName}
+                    onChange={(e) => setActionModal({...actionModal, reviewerName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Investigator Notes</label>
+                  <textarea 
+                    className="w-full bg-[#0b0f19] border border-slate-700 text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-cyan-500 h-24 resize-none" 
+                    placeholder="Add justification or context here..."
+                    value={actionModal.note}
+                    onChange={(e) => setActionModal({...actionModal, note: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setActionModal(null)} 
+                  className="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await resolveReview(currentAccount!.account_id, { 
+                        decision: actionModal.decision, 
+                        reviewer_name: actionModal.reviewerName || 'System (Auto)',
+                        note: actionModal.note || 'No notes attached.'
+                      })
+                      setToastMessage(`Account action logged to Compliance Audit.`)
+                    } catch (e) {
+                      setToastMessage('Error adding to audit trail.')
+                    }
+                    setActionModal(null)
+                  }}
+                  className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-sm font-bold rounded-lg transition-colors"
+                >
+                  Confirm & Log
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notification */}
+        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform ${toastMessage ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none'}`}>
+          <div className="bg-[#121620] border border-accent/30 rounded-xl px-5 py-3.5 shadow-2xl shadow-accent/20 flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-accent animate-pulse"></div>
+            <p className="text-sm font-semibold text-slate-200 tracking-wide">{toastMessage}</p>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col overflow-y-auto bg-[#0b0e14] p-8 animate-fade-in relative">
+          
+          <div className="flex items-center text-sm text-slate-400 mb-6">
+            <button 
+              onClick={() => setShowDetail(false)} 
+              className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <span className="text-lg leading-none">&lsaquo;</span> Accounts
+            </button>
+            <span className="mx-2 text-slate-600">&rsaquo;</span>
+            <span className="text-slate-200">{currentAccount.account_id}</span>
+          </div>
+
+          {detailLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-sm" style={{ color: '#22d3ee' }}>Loading full analysis...</p>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto w-full">
+              
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+                <div className="flex flex-col md:flex-row gap-6 md:gap-12 md:items-center">
+                  <div>
+                    <h1 className="text-4xl font-extrabold text-white tracking-tight mb-3">{currentAccount.account_id}</h1>
+                    <div className="flex gap-2">
+                      {renderTierBadge(currentAccount.risk_level)}
+                      <span className="border border-slate-600 text-slate-300 bg-slate-800/50 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+                        {currentAccount.human_review?.confidence_band === 'AUTO_BLOCK' ? 'Auto-Blocked' : 'Under Review'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="hidden md:block h-16 w-px bg-slate-800"></div>
+                  
+                  <div>
+                    <div className="text-4xl font-extrabold text-white tracking-tight">
+                      {currentAccount.risk_score} <span className="text-xl text-slate-500 font-medium">/ 1000</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">MuleRadar Score</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsReportOpen(true)}
+                    className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider border border-cyan-500/30 text-cyan-400 rounded-lg hover:bg-cyan-500/10 transition-colors"
+                  >
+                    Generate Report
+                  </button>
+                  <button onClick={() => setActionModal({ isOpen: true, decision: 'clear', reviewerName: '', note: '' })} className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+                    Dismiss
+                  </button>
+                  <button onClick={() => setActionModal({ isOpen: true, decision: 'escalate', reviewerName: '', note: '' })} className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/10 transition-colors">
+                    Escalate
+                  </button>
+                  <button onClick={() => setActionModal({ isOpen: true, decision: 'confirm_mule', reviewerName: '', note: '' })} className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider border border-rose-500/30 text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
+                    Freeze Account
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 py-6 border-y border-slate-800/60 mb-8">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Account Type</div>
+                  <div className="text-sm text-slate-200 font-medium">{currentAccount.account_type || 'Unknown'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Occupation</div>
+                  <div className="text-sm text-slate-200 font-medium capitalize">{currentAccount.occupation || 'Unknown'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Age</div>
+                  <div className="text-sm text-slate-200 font-medium">{currentAccount.age || 0}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Network Nodes</div>
+                  <div className="text-sm text-slate-200 font-medium">{currentAccount.network_connections?.nodes.length || 0}</div>
+                </div>
+              </div>
+
+              {/* Removed dead buttons as requested */}
+              <div className="flex gap-8 border-b border-slate-800/60 mb-8 px-2 overflow-x-auto">
+                <button className="pb-3 border-b-2 border-emerald-500 text-emerald-400 font-medium text-sm whitespace-nowrap">Overview</button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
+                
+                <div className="lg:col-span-4 bg-[#141820] border border-slate-800/60 rounded-xl p-6 flex flex-col h-min">
+                  <h3 className="text-sm font-bold text-slate-200 mb-6">Risk Summary</h3>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-800/60">
+                      <span className="text-xs text-slate-400">MuleRadar Risk Score</span>
+                      <span className="text-sm font-bold text-white">{currentAccount.risk_score} <span className="text-slate-500 font-normal">/ 1000</span></span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-800/60">
+                      <span className="text-xs text-slate-400">Risk Tier</span>
+                      <span className="text-sm font-bold" style={{ color: RISK_COLORS[currentAccount.risk_level as RiskLevel] }}>{currentAccount.risk_level}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-800/60">
+                      <span className="text-xs text-slate-400">Model Score (XGBoost Ensemble)</span>
+                      <span className="text-sm font-bold text-slate-200">{currentAccount.model_probability?.toFixed(3)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-800/60">
+                      <span className="text-xs text-slate-400">Anomaly Score (Isolation Forest)</span>
+                      <span className="text-sm font-bold text-slate-200">{currentAccount.anomaly_score?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-start pt-2">
+                      <span className="text-xs text-slate-400 w-1/3">Recommended Action</span>
+                      <span className="text-[11px] font-mono leading-relaxed text-emerald-400 text-right w-2/3 break-words">
+                        {currentAccount.human_review?.confidence_band === 'AUTO_BLOCK' ? 'Potential account freeze + SAR draft + investigator review' :
+                         currentAccount.human_review?.confidence_band === 'HUMAN_REVIEW' ? 'Investigator review required + Enhanced Due Diligence' :
+                         'No immediate action required'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-8 bg-[#141820] border border-slate-800/60 rounded-xl p-6 flex flex-col h-min">
+                  <h3 className="text-sm font-bold text-slate-200 mb-4">Top Risk Factors (SHAP)</h3>
+                  
+                  <div className="flex items-start gap-3 mb-8">
+                    <div className={`w-1 h-10 ${summaryBarColor} rounded-full mt-1`}></div>
+                    <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
+                      {shapSummary}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {displayShap
+                      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                      .slice(0, 8)
+                      .map((f) => {
+                        const isPos = f.contribution > 0;
+                        const width = Math.min(100, (Math.abs(f.contribution) / maxAbs) * 100);
+                        
+                        return (
+                          <div key={f.feature} className="grid grid-cols-[140px_1fr_60px] md:grid-cols-[180px_1fr_60px] gap-4 items-center">
+                            <div className="text-xs text-slate-300 font-mono truncate" title={f.feature}>
+                              {f.feature}
+                            </div>
+                            
+                            <div className="flex w-full h-3 bg-transparent">
+                              {/* Negative side */}
+                              <div className="w-1/2 flex justify-end border-r border-slate-700/50 pr-[2px]">
+                                {!isPos && (
+                                  <div 
+                                    className="h-full bg-emerald-500/80 rounded-sm" 
+                                    style={{ width: `${width}%` }} 
+                                  />
+                                )}
+                              </div>
+                              {/* Positive side */}
+                              <div className="w-1/2 flex justify-start pl-[2px]">
+                                {isPos && (
+                                  <div 
+                                    className="h-full bg-rose-500/80 rounded-sm" 
+                                    style={{ width: `${width}%` }} 
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className={`text-xs font-mono text-right ${isPos ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              {isPos ? '+' : ''}{f.contribution.toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+          {currentAccount && (
+            <InvestigationReportModal
+              account={currentAccount}
+              isOpen={isReportOpen}
+              onClose={() => setIsReportOpen(false)}
+            />
+          )}
+        </div>
+      </PageShell>
+    )
+  }
+
+  // =======================================================================
+  // STANDARD DIRECTORY VIEW
+  // =======================================================================
   return (
     <PageShell>
       <div className="flex flex-1 flex-col gap-6 overflow-hidden p-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#f8fafc' }}>
@@ -129,7 +468,16 @@ function AccountsPage() {
               {filteredAccounts.length} of {accounts.length} accounts • {stats.simulated} simulated
             </p>
           </div>
-          <div className="flex flex-row items-center gap-3">
+          <div className="flex flex-row items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer bg-white/5 border border-white/10 px-3 py-2 rounded-lg hover:bg-white/10 transition shadow-sm">
+              <input
+                type="checkbox"
+                checked={hideInSample}
+                onChange={(e) => setHideInSample(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/50"
+              />
+              Hide Training Data
+            </label>
             <input
               type="text"
               value={searchQuery}
@@ -155,8 +503,7 @@ function AccountsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
             <div className="p-2 rounded" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
               <span className="text-xl">🚨</span>
@@ -193,15 +540,6 @@ function AccountsPage() {
               <p className="text-xl font-bold" style={{ color: '#22c55e' }}>{stats.low}</p>
             </div>
           </div>
-          <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-            <div className="p-2 rounded" style={{ background: 'rgba(168, 85, 247, 0.15)' }}>
-              <span className="text-xl">💰</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>Total Exposure</p>
-              <p className="text-lg font-bold" style={{ color: '#a855f7' }}>{formatINR(stats.totalExposure)}</p>
-            </div>
-          </div>
           <div className="glass p-4 flex flex-row items-center gap-3" style={{ borderColor: 'rgba(34, 211, 238, 0.3)' }}>
             <div className="p-2 rounded" style={{ background: 'rgba(34, 211, 238, 0.15)' }}>
               <span className="text-xl">🏦</span>
@@ -213,7 +551,6 @@ function AccountsPage() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
         <div className="flex flex-row gap-2 overflow-x-auto pb-2">
           {FILTERS.map((f) => {
             const isActive = f === filter
@@ -223,19 +560,17 @@ function AccountsPage() {
                 key={f}
                 type="button"
                 onClick={() => setFilter(f)}
-                className={`flex flex-row items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider whitespace-nowrap rounded-full transition-all ${
-                  isActive
+                className={`flex flex-row items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider whitespace-nowrap rounded-full transition-all ${isActive
                     ? 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 text-cyan-400'
                     : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                }`}
+                  }`}
               >
                 {f}
                 <span
-                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                    isActive
+                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${isActive
                       ? 'bg-white/20 text-white'
                       : 'bg-white/10 text-white/60'
-                  }`}
+                    }`}
                 >
                   {count}
                 </span>
@@ -244,8 +579,7 @@ function AccountsPage() {
           })}
         </div>
 
-        {/* Table */}
-        <div className="flex-1 glass flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
               <p className="text-sm" style={{ color: '#22d3ee' }}>
@@ -264,300 +598,81 @@ function AccountsPage() {
               <p className="text-sm" style={{ color: '#94a3b8' }}>No accounts match your filters</p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col overflow-x-auto">
-              <div className="min-w-[800px] flex flex-col h-full">
-                <div className="flex flex-row items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-                <div className="flex flex-row items-center gap-2 text-xs" style={{ color: '#94a3b8', letterSpacing: '0.18em' }}>
-                  <span className="flex-1 min-w-[140px]" onClick={() => handleSort('account_id')} style={{ cursor: 'pointer' }}>
-                    Account ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center" onClick={() => handleSort('risk_score')} style={{ cursor: 'pointer' }}>
-                    Score {sortConfig?.key === 'risk_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-28 text-center" onClick={() => handleSort('risk_level')} style={{ cursor: 'pointer' }}>
-                    Level {sortConfig?.key === 'risk_level' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-36 text-center" onClick={() => handleSort('kill_chain_stage')} style={{ cursor: 'pointer' }}>
-                    Stage {sortConfig?.key === 'kill_chain_stage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-40 text-center" onClick={() => handleSort('damage_metrics')} style={{ cursor: 'pointer' }}>
-                    Recoverable {sortConfig?.key === 'damage_metrics' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </span>
-                  <span className="w-24 text-center">
-                    Network
-                  </span>
-                  <span className="w-24 text-center">
-                    Actions
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full border-collapse text-sm">
-                  <tbody>
-                    {filteredAccounts.map((row) => (
-                      <tr
-                        key={row.account_id}
-                        onClick={() => handleRowClick(row)}
-                        className="cursor-pointer hover:bg-white/5 transition-colors border-b"
-                        style={{ borderColor: 'rgba(255, 255, 255, 0.04)' }}
-                      >
-                        <td className="px-6 py-4 font-mono min-w-[140px]">
-                          <span className="flex flex-row items-center gap-2" style={{ color: '#22d3ee' }}>
-                            {row.account_id}
-                            {row.is_simulated && (
-                              <span
-                                title="Simulated result - no trained model artifacts matched this account"
-                                className="inline-flex items-center bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 rounded"
-                              >
-                                Sim
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center tabular-nums font-bold" style={{ color: '#f8fafc' }}>
-                          {row.risk_score}
-                        </td>
-                        <td className="px-6 py-4 w-28 text-center">
+            <div className="overflow-auto bg-[#141820] border border-slate-800/80 rounded-xl flex-1">
+              <table className="w-full text-left text-sm whitespace-nowrap relative">
+                <thead className="bg-[#1C212B] text-[11px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-800 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('account_id')}>
+                      ACCOUNT ID {sortConfig?.key === 'account_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4">TYPE</th>
+                    <th className="px-6 py-4">OCCUPATION</th>
+                    <th className="px-6 py-4">AGE</th>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('anomaly_score')}>
+                      ANOMALY {sortConfig?.key === 'anomaly_score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('model_probability')}>
+                      ENSEMBLE PROB. {sortConfig?.key === 'model_probability' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer text-emerald-400" onClick={() => handleSort('risk_score')}>
+                      RISK SCORE {sortConfig?.key === 'risk_score' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↓'}
+                    </th>
+                    <th className="px-6 py-4">TIER</th>
+                    <th className="px-6 py-4">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {filteredAccounts.map((account) => (
+                    <tr
+                      key={account.account_id}
+                      onClick={() => handleRowClick(account)}
+                      className="hover:bg-slate-800/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-6 py-3.5 font-mono text-slate-200 flex items-center gap-2">
+                        {account.account_id}
+                        {account.was_seen_during_training && (
                           <span
-                            className="inline-flex items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded"
-                            style={{
-                              backgroundColor: `${RISK_COLORS[row.risk_level]}33`,
-                              color: RISK_COLORS[row.risk_level],
-                              boxShadow: RISK_GLOWS[row.risk_level],
-                            }}
+                            className="bg-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider"
+                            title="In-Sample Training Data"
                           >
-                            {row.risk_level}
+                            Train
                           </span>
-                        </td>
-                        <td className="px-6 py-4 w-36 text-center" style={{ color: '#94a3b8' }}>
-                          {row.kill_chain_stage}
-                        </td>
-                        <td className="px-6 py-4 w-40 text-center tabular-nums font-medium" style={{ color: '#a855f7' }}>
-                          {formatINR(row.damage_metrics?.recoverable_amount ?? 0)}
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center text-xs" style={{ color: '#94a3b8' }}>
-                          {row.network_connections?.nodes.length ?? 0} nodes
-                        </td>
-                        <td className="px-6 py-4 w-24 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRowClick(row)
-                            }}
-                            className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider rounded transition-all"
-                            style={{
-                              background: 'rgba(34, 211, 238, 0.1)',
-                              border: '1px solid rgba(34, 211, 238, 0.3)',
-                              color: '#22d3ee',
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-slate-300">{account.account_type || 'Unknown'}</td>
+                      <td className="px-6 py-3.5 text-slate-300 capitalize">{account.occupation || 'Unknown'}</td>
+                      <td className="px-6 py-3.5 text-slate-300">{account.age || 0}</td>
+                      <td className="px-6 py-3.5 text-slate-300">
+                        {(account.anomaly_score || 0).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-3.5 text-slate-300">
+                        {(account.model_probability || 0).toFixed(3)}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 font-medium text-slate-200">{account.risk_score}</span>
+                          <div className="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${getRiskBarColor(account.risk_score)} transition-all`}
+                              style={{ width: `${(account.risk_score / 1000) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {renderTierBadge(account.risk_level)}
+                      </td>
+                      <td className="px-6 py-3.5 text-xs text-slate-400">
+                        {renderStatus(account)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       </div>
-
-      {/* Detail Drawer */}
-      {showDetail && currentAccount && (
-        <div
-          className="fixed inset-0 z-50 flex flex-row justify-end"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowDetail(false)} />
-
-          {/* Drawer Panel */}
-          <div
-            className="relative w-full max-w-[500px] h-full shadow-2xl flex flex-col animate-slide-left border-l"
-            style={{
-              backgroundColor: '#0a1128',
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-            }}
-          >
-            <div className="flex flex-row items-center justify-between p-5 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-              <h2 className="text-lg font-bold" style={{ color: '#22d3ee' }}>Account Detail</h2>
-              <button
-                onClick={() => setShowDetail(false)}
-                className="text-xl font-medium p-1 rounded hover:bg-white/10 transition-colors"
-                style={{ color: '#cbd5e1' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-5 space-y-6">
-              {detailLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <p className="text-sm" style={{ color: '#22d3ee' }}>
-                    Loading details...
-                    <span className="ellipsis-dot ml-1">.</span>
-                    <span className="ellipsis-dot">.</span>
-                    <span className="ellipsis-dot">.</span>
-                  </p>
-                </div>
-              )}
-
-              {/* Header */}
-              <div className="flex flex-row items-center justify-between">
-                <span className="font-mono text-xl" style={{ color: '#f8fafc' }}>{currentAccount.account_id}</span>
-                <div className="flex flex-row items-center gap-2">
-                  <span
-                    className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${
-                      currentAccount.is_simulated ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                    }`}
-                  >
-                    {currentAccount.is_simulated ? 'Simulated' : 'Live'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Risk Score */}
-              <div className="glass p-5 rounded-xl" style={{ borderColor: 'rgba(34, 211, 238, 0.3)' }}>
-                <div className="flex flex-row items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Risk Score</p>
-                    <p className="text-5xl font-extrabold text-gradient-cyan-purple">{currentAccount.risk_score}</p>
-                    <p className="text-xs" style={{ color: '#94a3b8' }}>out of 1000</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Risk Level</p>
-                    <span
-                      className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider rounded"
-                      style={{
-                        backgroundColor: `${RISK_COLORS[currentAccount.risk_level]}33`,
-                        color: RISK_COLORS[currentAccount.risk_level],
-                        boxShadow: RISK_GLOWS[currentAccount.risk_level],
-                      }}
-                    >
-                      {currentAccount.risk_level}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Key Metrics Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="glass p-4">
-                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Kill Chain</p>
-                  <p className="font-bold" style={{ color: '#f97316' }}>{currentAccount.kill_chain_stage}</p>
-                </div>
-                <div className="glass p-4">
-                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Network Nodes</p>
-                  <p className="font-bold text-gradient-cyan-purple">{currentAccount.network_connections?.nodes.length ?? 0}</p>
-                </div>
-                <div className="glass p-4">
-                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>Edges</p>
-                  <p className="font-bold text-gradient-cyan-purple">{currentAccount.network_connections?.edges.length ?? 0}</p>
-                </div>
-                <div className="glass p-4">
-                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#94a3b8' }}>In Transit</p>
-                  <p className="font-bold" style={{ color: '#f97316' }}>{formatINR(currentAccount.damage_metrics?.in_transit_amount ?? 0)}</p>
-                </div>
-              </div>
-
-              {/* Financial Impact */}
-              <div className="glass p-5 rounded-xl" style={{ borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-                <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-                  Financial Impact
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex flex-row items-center justify-between p-3 rounded bg-green-500/5 border border-green-500/10">
-                    <span className="text-xs" style={{ color: '#94a3b8' }}>Recoverable Now</span>
-                    <span className="font-bold text-lg" style={{ color: '#22c55e' }}>
-                      {formatINR(currentAccount.damage_metrics?.recoverable_amount ?? 0)}
-                    </span>
-                  </div>
-                  <div className="flex flex-row items-center justify-between p-3 rounded bg-orange-500/5 border border-orange-500/10">
-                    <span className="text-xs" style={{ color: '#94a3b8' }}>In Transit</span>
-                    <span className="font-bold text-lg" style={{ color: '#f97316' }}>
-                      {formatINR(currentAccount.damage_metrics?.in_transit_amount ?? 0)}
-                    </span>
-                  </div>
-                  <div className="flex flex-row items-center justify-between p-3 rounded bg-purple-500/5 border border-purple-500/10 pt-3" style={{ borderTop: '1px solid rgba(168, 85, 247, 0.2)' }}>
-                    <span className="text-xs uppercase tracking-wider" style={{ color: '#a855f7' }}>Total Exposure</span>
-                    <span className="font-bold text-xl" style={{ color: '#a855f7' }}>
-                      {formatINR((currentAccount.damage_metrics?.recoverable_amount ?? 0) + (currentAccount.damage_metrics?.in_transit_amount ?? 0))}
-                    </span>
-                  </div>
-                </div>
-                {currentAccount.damage_metrics?.is_estimated && (
-                  <p className="mt-3 text-[11px] leading-snug" style={{ color: '#cbd5e1' }}>
-                    {currentAccount.damage_metrics.estimation_note ?? 'Estimated figures - not verified against real transaction records.'}
-                  </p>
-                )}
-              </div>
-
-              {/* SHAP Preview */}
-              {currentAccount.shap_explanation && currentAccount.shap_explanation.length > 0 && (
-                <div className="glass p-5">
-                  <h3 className="text-xs font-medium uppercase mb-4" style={{ color: '#cbd5e1', letterSpacing: '0.18em' }}>
-                    Top Risk Drivers
-                  </h3>
-                  <div className="space-y-3">
-                    {currentAccount.shap_explanation
-                      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
-                      .slice(0, 4)
-                      .map((f) => {
-                        const isPositive = f.contribution > 0
-                        const maxAbs = Math.max(...currentAccount.shap_explanation!.map((ff) => Math.abs(ff.contribution)))
-                        const widthPct = Math.min(100, (Math.abs(f.contribution) / maxAbs) * 100)
-                        return (
-                          <div key={f.feature} className="flex flex-col gap-1">
-                            <div className="flex flex-row items-center justify-between">
-                              <span className="text-xs truncate max-w-[160px]" style={{ color: '#94a3b8' }}>{f.feature}</span>
-                              <span className="text-xs font-bold tabular-nums" style={{ color: isPositive ? '#22d3ee' : '#ef4444' }}>
-                                {f.contribution > 0 ? '+' : ''}{f.contribution.toFixed(3)}
-                              </span>
-                            </div>
-                            <div className="h-1.5 bg-white/5 rounded overflow-hidden">
-                              <div
-                                className="h-full transition-all duration-500"
-                                style={{
-                                  width: `${widthPct}%`,
-                                  background: isPositive ? 'linear-gradient(90deg, #22d3ee, #a855f7)' : 'linear-gradient(90deg, #ef4444, #f97316)',
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
-                  </div>
-                  <p className="mt-3 text-[10px] text-center" style={{ color: '#94a3b8' }}>
-                    View full SHAP analysis on the SHAP page →
-                  </p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex flex-row gap-3 pt-3 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.06)' }}>
-                <button className="flex-1 py-3 text-sm font-medium uppercase tracking-wider rounded-lg transition-all" style={{
-                  background: 'rgba(34, 211, 238, 0.1)',
-                  border: '1px solid rgba(34, 211, 238, 0.4)',
-                  color: '#22d3ee',
-                }}>
-                  Re-evaluate
-                </button>
-                <button className="flex-1 py-3 text-sm font-medium uppercase tracking-wider rounded-lg transition-all" style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  color: '#cbd5e1',
-                }}>
-                  AI Summary
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </PageShell>
   )
 }

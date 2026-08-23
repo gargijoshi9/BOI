@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import PageShell from '../components/PageShell'
 import NetworkGraph from '../components/NetworkGraph'
-import { formatINR } from '../components/DamageForecastWidget'
 import { useApp } from '../context/AppContext'
 import { WidgetShell, WidgetTitle } from '../components/RiskScoreWidget'
 
@@ -67,12 +66,9 @@ function NetworkPage() {
 
         {currentAccount ? (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-5">
               <StatCard value={currentAccount.network_connections?.nodes.length?.toString() ?? '0'} label="Nodes" icon="🔗" />
               <StatCard value={currentAccount.network_connections?.edges.length?.toString() ?? '0'} label="Edges" icon="➡️" />
-              <StatCard value={formatINR(currentAccount.damage_metrics?.recoverable_amount ?? 0)} label="Recoverable" icon="🛡️" />
-              <StatCard value={formatINR(currentAccount.damage_metrics?.in_transit_amount ?? 0)} label="In Transit" icon="💸" />
-              <StatCard value={formatINR((currentAccount.damage_metrics?.recoverable_amount ?? 0) + (currentAccount.damage_metrics?.in_transit_amount ?? 0))} label="Total Exposure" icon="💰" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -105,8 +101,8 @@ function NetworkPage() {
                       </span>
                     </div>
                     <div className="flex flex-row items-center justify-between py-2 border-b border-border/50">
-                      <span className="text-body-sm text-foreground-muted">Kill Chain</span>
-                      <span className="font-medium text-body-md text-amber-500">{currentAccount.kill_chain_stage}</span>
+                      <span className="text-body-sm text-foreground-muted">Review Required</span>
+                      <span className="font-medium text-body-md text-amber-500">{currentAccount.human_review?.requires_review ? 'Yes' : 'No'}</span>
                     </div>
                     <div className="flex flex-row items-center justify-between py-2">
                       <span className="text-body-sm text-foreground-muted">Mode</span>
@@ -117,29 +113,7 @@ function NetworkPage() {
                   </div>
                 </WidgetShell>
 
-                <WidgetShell>
-                  <WidgetTitle>Financial Impact</WidgetTitle>
-                  <div className="mt-4 space-y-3">
-                    <div className="flex flex-row items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/10">
-                      <span className="text-body-sm text-foreground-muted">Recoverable Now</span>
-                      <span className="font-bold text-heading-sm text-green-500">
-                        {formatINR(currentAccount.damage_metrics?.recoverable_amount ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex flex-row items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                      <span className="text-body-sm text-foreground-muted">In Transit</span>
-                      <span className="font-bold text-heading-sm text-amber-500">
-                        {formatINR(currentAccount.damage_metrics?.in_transit_amount ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex flex-row items-center justify-between p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 pt-3 border-t border-purple-500/20">
-                      <span className="stat-label text-purple-400">Total Exposure</span>
-                      <span className="font-mono font-bold text-xl text-purple-400">
-                        {formatINR((currentAccount.damage_metrics?.recoverable_amount ?? 0) + (currentAccount.damage_metrics?.in_transit_amount ?? 0))}
-                      </span>
-                    </div>
-                  </div>
-                </WidgetShell>
+
 
                 <WidgetShell>
                   <WidgetTitle>Network Stats</WidgetTitle>
@@ -189,7 +163,7 @@ function NetworkPage() {
                     </div>
                     <div className="mt-2 flex flex-row items-center gap-4 text-body-sm text-foreground-muted">
                       <span>Score: <span className="font-bold text-foreground">{acc.risk_score}</span></span>
-                      <span>{acc.kill_chain_stage}</span>
+                      <span>{acc.human_review?.confidence_band}</span>
                     </div>
                   </button>
                 ))}

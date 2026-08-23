@@ -10,12 +10,12 @@ function ShapWidget({ shapExplanation }: ShapWidgetProps) {
     shapExplanation && shapExplanation.length > 0
       ? shapExplanation
       : [
-          { feature: 'tx_velocity_24h', contribution: 0.32 },
-          { feature: 'cross_border_ratio', contribution: 0.24 },
-          { feature: 'device_reuse_count', contribution: 0.18 },
-          { feature: 'kyc_age_days', contribution: 0.12 },
-          { feature: 'avg_tx_size', contribution: 0.08 },
-        ]
+        { feature: 'tx_velocity_24h', contribution: 0.32 },
+        { feature: 'cross_border_ratio', contribution: 0.24 },
+        { feature: 'device_reuse_count', contribution: 0.18 },
+        { feature: 'kyc_age_days', contribution: 0.12 },
+        { feature: 'avg_tx_size', contribution: 0.08 },
+      ]
 
   const maxAbs = Math.max(...features.map((f) => Math.abs(f.contribution)), 0.001)
 

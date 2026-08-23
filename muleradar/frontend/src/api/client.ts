@@ -4,24 +4,20 @@ import axios, { AxiosInstance } from 'axios'
 
 export type RiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
 
-// 'None' is a real value the backend sends for Low-risk / no-active-stage
-// accounts (see analyzer.py's risk-score bucketing). Omitting it here was
-// the root cause of KillChainWidget rendering "Stage 0 of 3" with no
-// highlighted box - always include every value the backend can actually
-// emit, even ones that feel like "no value."
-export type KillChainStage = 'Placement' | 'Layering' | 'Integration' | 'None'
-
 export type NodeType = 'mule' | 'normal' | 'cash_out' | 'relay'
 
 export interface HealthResponse {
-  status: 'healthy' | string
-  mode: 'Simulated Mode' | 'Live Model Active' | string
-  models: string[]
+  status: 'healthy' | 'online' | string
+  mode?: 'Simulated Mode' | 'Live Model Active' | string
+  models?: string[]
+  ml_engine?: string
 }
 
 export interface ShapFeature {
   feature: string
   contribution: number
+  display_name?: string
+  description?: string
 }
 
 export interface GraphNode {
@@ -40,22 +36,34 @@ export interface NetworkConnections {
   edges: GraphEdge[]
 }
 
-export interface DamageMetrics {
-  recoverable_amount: number
-  in_transit_amount: number
-  // True when these figures are derived/estimated rather than verified
-  // against real transaction records. Always render this distinction in
-  // the UI - never present an estimate as a confirmed figure.
-  is_estimated: boolean
-  estimation_note?: string | null
+export type ConfidenceBand = 'AUTO_CLEAR' | 'HUMAN_REVIEW' | 'AUTO_BLOCK'
+
+export interface HumanReviewInfo {
+  requires_review: boolean
+  review_reason: string | null
+  confidence_band: ConfidenceBand
+  anomaly_flagged: boolean
 }
 
 export interface RiskEvaluationResponse {
   account_id: string
+  // ----- New UI Columns -----
+  account_type?: string
+  occupation?: string
+  age?: number
+  anomaly_score?: number
+  model_probability?: number
+  model_component_scores?: {
+    xgb_probability?: number;
+    lgbm_probability?: number;
+    cat_probability?: number;
+    anomaly_score_if?: number;
+    combination_method?: string;
+  }
+  // --------------------------
   risk_score: number
   risk_level: RiskLevel
-  kill_chain_stage: KillChainStage
-  damage_metrics: DamageMetrics
+  human_review: HumanReviewInfo
   shap_explanation: ShapFeature[]
   network_connections: NetworkConnections
   // True when this result came from the deterministic simulator fallback
@@ -64,10 +72,56 @@ export interface RiskEvaluationResponse {
   // visibly in the UI so simulated results are never mistaken for real
   // predictions during a live demo.
   is_simulated: boolean
+  // --- ADDED HONESTY FLAG ---
+  was_seen_during_training: boolean
 }
 
 export interface AIAssistantSummaryResponse {
   summary: string
+}
+
+// ---------- HITL & Validation Types ----------
+
+export interface ReviewQueueItem {
+  account_id: string;
+  risk_score: number;
+  risk_level: RiskLevel;
+  review_reason?: string;
+  queued_at: string;
+}
+
+export interface ReviewQueueResponse {
+  total: number;
+  items: ReviewQueueItem[];
+}
+
+export interface ReviewDecisionRequest {
+  decision: 'confirm_mule' | 'clear' | 'escalate';
+  reviewer_name: string;
+  note?: string;
+}
+
+export interface ReviewDecisionRecord {
+  account_id: string;
+  decision: string;
+  reviewer_name: string;
+  note: string;
+  model_risk_score: number;
+  model_review_reason?: string;
+  timestamp: string;
+}
+
+export interface ValidationWarnings {
+  missing_columns: string[];
+  extra_columns_ignored: number;
+}
+
+export interface ValidationResponse {
+  filename: string;
+  n_rows: number;
+  warnings: ValidationWarnings;
+  methodology_note: string;
+  results: RiskEvaluationResponse[];
 }
 
 // ---------- Base axios instance ----------
@@ -132,10 +186,56 @@ export async function fetchAIAssistantSummary(
 }
 
 export async function fetchAccounts(
-  limit: number = 50,
+  limit?: number,
+  heldOutOnly: boolean = true
 ): Promise<RiskEvaluationResponse[]> {
   const { data } = await api.get<RiskEvaluationResponse[]>('/api/v1/accounts', {
-    params: { limit },
+    params: { 
+      ...(limit ? { limit } : {}),
+      held_out_only: heldOutOnly
+    },
   })
+  return data
+}
+
+// ---------- HITL & Validation API Calls ----------
+
+export async function fetchReviewQueue(limit: number = 100): Promise<ReviewQueueResponse> {
+  const { data } = await api.get<ReviewQueueResponse>('/api/v1/review-queue', {
+    params: { limit }
+  })
+  return data
+}
+
+export async function resolveReview(
+  accountId: string, 
+  requestData: ReviewDecisionRequest
+): Promise<ReviewDecisionRecord> {
+  const { data } = await api.post<ReviewDecisionRecord>(
+    `/api/v1/review-queue/${accountId}/resolve`,
+    requestData
+  )
+  return data
+}
+
+export async function fetchAuditTrail(
+  accountId?: string
+): Promise<ReviewDecisionRecord[]> {
+  const { data } = await api.get<ReviewDecisionRecord[]>('/api/v1/review-queue/audit-trail', {
+    params: accountId ? { account_id: accountId } : undefined
+  })
+  return data
+}
+
+export async function validateDataset(
+  file: File
+): Promise<ValidationResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // Axios automatically sets the Content-Type to multipart/form-data when passing FormData
+  const { data } = await api.post<ValidationResponse>(
+    '/api/v1/validate', 
+    formData
+  )
   return data
 }
