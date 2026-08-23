@@ -53,7 +53,7 @@ function KillChainWidget({ killChainStage }: KillChainWidgetProps) {
         <WidgetTitle>Kill Chain Stage</WidgetTitle>
         <div className="mt-4 flex w-full">
           <div className="flex flex-row items-center justify-between gap-1 sm:gap-2 w-full">
-            {KILL_CHAIN_STAGES.map((stage, i) => {
+            {KILL_CHAIN_STAGES.map((stage) => {
               const isActive = stage === active
               return (
                 <div key={stage} className="flex flex-row flex-1 items-center justify-center min-w-0">

@@ -5,8 +5,8 @@ from threading import Lock
 from typing import List, Optional
 from datetime import datetime
 
-# This will save the audit log in the root muleradar directory
-_AUDIT_LOG_PATH = Path(__file__).resolve().parent.parent.parent.parent / "audit_trail.json"
+# Save audit log inside the backend directory
+_AUDIT_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "audit_trail.json"
 _write_lock = Lock()
 
 def _ensure_log_exists() -> None:

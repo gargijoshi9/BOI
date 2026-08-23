@@ -48,7 +48,7 @@ function AccountsPage() {
       try {
         setLoading(true)
         // Requesting a high limit to pull all 9000+ accounts from the vectorized backend, passing the honesty toggle
-        const data = await fetchAccounts(15000, hideInSample) 
+        const data = await fetchAccounts(15000, hideInSample)
         setAccounts(data as ExtendedAccount[])
       } catch (err) {
         setError('Failed to fetch accounts from backend')
@@ -163,9 +163,9 @@ function AccountsPage() {
           </div>
           <div className="flex flex-row items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer bg-white/5 border border-white/10 px-3 py-2 rounded-lg hover:bg-white/10 transition shadow-sm">
-              <input 
-                type="checkbox" 
-                checked={hideInSample} 
+              <input
+                type="checkbox"
+                checked={hideInSample}
                 onChange={(e) => setHideInSample(e.target.checked)}
                 className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/50"
               />
@@ -255,19 +255,17 @@ function AccountsPage() {
                 key={f}
                 type="button"
                 onClick={() => setFilter(f)}
-                className={`flex flex-row items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider whitespace-nowrap rounded-full transition-all ${
-                  isActive
+                className={`flex flex-row items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider whitespace-nowrap rounded-full transition-all ${isActive
                     ? 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 text-cyan-400'
                     : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                }`}
+                  }`}
               >
                 {f}
                 <span
-                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                    isActive
+                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${isActive
                       ? 'bg-white/20 text-white'
                       : 'bg-white/10 text-white/60'
-                  }`}
+                    }`}
                 >
                   {count}
                 </span>
@@ -321,16 +319,16 @@ function AccountsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-300">
                   {filteredAccounts.map((account) => (
-                    <tr 
-                      key={account.account_id} 
+                    <tr
+                      key={account.account_id}
                       onClick={() => handleRowClick(account)}
                       className="hover:bg-slate-800/30 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-3.5 font-mono text-slate-200 flex items-center gap-2">
                         {account.account_id}
                         {account.was_seen_during_training && (
-                          <span 
-                            className="bg-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider" 
+                          <span
+                            className="bg-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider"
                             title="In-Sample Training Data"
                           >
                             Train
@@ -350,12 +348,11 @@ function AccountsPage() {
                         <div className="flex items-center gap-3">
                           <span className="w-8 font-medium text-slate-200">{account.risk_score}</span>
                           <div className="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${
-                                account.risk_score > 900 ? 'bg-[#FF4A5A]' : 
-                                account.risk_score > 600 ? 'bg-orange-500' : 
-                                'bg-emerald-500'
-                              }`}
+                            <div
+                              className={`h-full ${account.risk_score > 900 ? 'bg-[#FF4A5A]' :
+                                  account.risk_score > 600 ? 'bg-orange-500' :
+                                    'bg-emerald-500'
+                                }`}
                               style={{ width: `${(account.risk_score / 1000) * 100}%` }}
                             ></div>
                           </div>
@@ -426,9 +423,8 @@ function AccountsPage() {
                     </span>
                   )}
                   <span
-                    className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${
-                      currentAccount.is_simulated ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                    }`}
+                    className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${currentAccount.is_simulated ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
+                      }`}
                   >
                     {currentAccount.is_simulated ? 'Simulated' : 'Live'}
                   </span>

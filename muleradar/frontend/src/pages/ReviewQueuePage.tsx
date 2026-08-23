@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import PageShell from '../components/PageShell';
-import { 
-  fetchReviewQueue, 
-  resolveReview, 
-  ReviewQueueItem, 
-  ReviewDecisionRequest 
+import {
+  fetchReviewQueue,
+  resolveReview,
+  ReviewQueueItem,
+  ReviewDecisionRequest
 } from '../api/client';
 import { AlertTriangle, CheckCircle, ShieldAlert, Clock, User, FileText, RefreshCw } from 'lucide-react';
 
@@ -12,7 +12,7 @@ export const ReviewQueuePage: React.FC = () => {
   const [queue, setQueue] = useState<ReviewQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Resolution Modal State
   const [selectedItem, setSelectedItem] = useState<ReviewQueueItem | null>(null);
   const [reviewerName, setReviewerName] = useState('');
@@ -40,7 +40,7 @@ export const ReviewQueuePage: React.FC = () => {
 
   const handleResolve = async (decision: ReviewDecisionRequest['decision']) => {
     if (!selectedItem || !reviewerName.trim()) return;
-    
+
     setSubmitting(true);
     try {
       await resolveReview(selectedItem.account_id, {
@@ -69,7 +69,7 @@ export const ReviewQueuePage: React.FC = () => {
   return (
     <PageShell>
       <div className="flex flex-1 flex-col gap-6 overflow-hidden p-6 relative">
-        
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -80,7 +80,7 @@ export const ReviewQueuePage: React.FC = () => {
               {queue.length} account{queue.length === 1 ? '' : 's'} require manual adjudication
             </p>
           </div>
-          <button 
+          <button
             onClick={loadQueue}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 text-cyan-400 rounded-lg hover:bg-slate-700 transition shadow-sm"
           >
@@ -126,11 +126,10 @@ export const ReviewQueuePage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <span className="font-bold text-slate-200">{item.risk_score}</span>
-                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${
-                            item.risk_level.toUpperCase() === 'CRITICAL' || item.risk_level.toUpperCase() === 'HIGH' 
-                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/50' 
+                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${item.risk_level.toUpperCase() === 'CRITICAL' || item.risk_level.toUpperCase() === 'HIGH'
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/50'
                               : 'bg-slate-800/50 text-slate-400 border-slate-600'
-                          }`}>
+                            }`}>
                             {item.risk_level}
                           </span>
                         </div>
@@ -168,13 +167,13 @@ export const ReviewQueuePage: React.FC = () => {
       {selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#141820] border border-slate-700 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col animate-slide-up">
-            
+
             <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-[#1C212B]">
               <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-amber-500" />
                 Adjudicate Account {selectedItem.account_id}
               </h2>
-              <button 
+              <button
                 onClick={() => {
                   setSelectedItem(null);
                   setNote('');
@@ -186,12 +185,12 @@ export const ReviewQueuePage: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-5">
-              
+
               {/* Context Summary Box */}
               <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-2">
                 <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">System Flag</p>
                 <p className="text-sm text-slate-200">
-                  Model confidence is borderline (Score: <strong className="text-cyan-400">{selectedItem.risk_score}</strong>). 
+                  Model confidence is borderline (Score: <strong className="text-cyan-400">{selectedItem.risk_score}</strong>).
                   Reason: <strong className="text-amber-400">{getReasonLabel(selectedItem.review_reason)}</strong>.
                 </p>
               </div>
@@ -202,8 +201,8 @@ export const ReviewQueuePage: React.FC = () => {
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     <User className="w-3.5 h-3.5" /> Investigator Name
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={reviewerName}
                     onChange={(e) => setReviewerName(e.target.value)}
                     placeholder="e.g., Jane Doe"
@@ -214,7 +213,7 @@ export const ReviewQueuePage: React.FC = () => {
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     <FileText className="w-3.5 h-3.5" /> Audit Trail Notes
                   </label>
-                  <textarea 
+                  <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Rationale for overriding or confirming model confidence..."
@@ -226,7 +225,7 @@ export const ReviewQueuePage: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-800 grid grid-cols-3 gap-3">
-                <button 
+                <button
                   disabled={submitting || !reviewerName.trim()}
                   onClick={() => handleResolve('clear')}
                   className="flex flex-col items-center justify-center p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -234,8 +233,8 @@ export const ReviewQueuePage: React.FC = () => {
                   <CheckCircle className="w-5 h-5 mb-1.5" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Clear Risk</span>
                 </button>
-                
-                <button 
+
+                <button
                   disabled={submitting || !reviewerName.trim()}
                   onClick={() => handleResolve('escalate')}
                   className="flex flex-col items-center justify-center p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -244,7 +243,7 @@ export const ReviewQueuePage: React.FC = () => {
                   <span className="text-[10px] font-bold uppercase tracking-wider">Escalate</span>
                 </button>
 
-                <button 
+                <button
                   disabled={submitting || !reviewerName.trim()}
                   onClick={() => handleResolve('confirm_mule')}
                   className="flex flex-col items-center justify-center p-3 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"

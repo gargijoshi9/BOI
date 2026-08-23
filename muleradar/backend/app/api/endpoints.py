@@ -94,10 +94,14 @@ async def get_review_queue(limit: int = 100, held_out_only: bool = True):
         # Run batch inference to find accounts needing review
         accounts = mule_analyzer.get_accounts(limit=None, held_out_only=held_out_only)
         
+        # Exclude accounts that have already been adjudicated in the audit trail
+        resolved_records = audit_trail.get_trail()
+        resolved_ids = {r["account_id"] for r in resolved_records}
+
         queue_items = []
         for a in accounts:
             hr = a.get("human_review", {})
-            if hr.get("requires_review"):
+            if hr.get("requires_review") and a["account_id"] not in resolved_ids:
                 queue_items.append(
                     ReviewQueueItem(
                         account_id=a["account_id"],
