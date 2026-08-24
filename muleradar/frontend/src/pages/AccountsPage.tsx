@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageShell from '../components/PageShell'
 import { RiskLevel, fetchAccounts, RiskEvaluationResponse, resolveReview } from '../api/client'
 import { useApp } from '../context/AppContext'
@@ -39,6 +40,7 @@ const getRiskBarColor = (score: number) => {
 };
 
 function AccountsPage() {
+  const navigate = useNavigate()
   const { currentAccount, evaluateAccount } = useApp()
   const [filter, setFilter] = useState<RiskFilter>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
@@ -122,14 +124,11 @@ function AccountsPage() {
   }
 
   async function handleRowClick(account: ExtendedAccount) {
-    setDetailLoading(true)
-    setShowDetail(true)
     try {
       await evaluateAccount(account.account_id)
+      navigate('/dashboard')
     } catch (err) {
       console.error('Failed to fetch account details:', err)
-    } finally {
-      setDetailLoading(false)
     }
   }
 
