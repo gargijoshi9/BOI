@@ -55,19 +55,53 @@ function ValidationPage() {
       const response = await validateDataset(file)
       setValidationResult(response)
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err.message || 'Failed to process and validate CSV dataset.')
+      let errorMessage = err.message || 'Failed to process and validate CSV dataset.'
+      if (err?.response?.data?.detail) {
+        if (typeof err.response.data.detail === 'string') {
+          errorMessage = err.response.data.detail
+        } else if (Array.isArray(err.response.data.detail)) {
+          // FastAPI returns an array of validation errors for 422
+          errorMessage = err.response.data.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ')
+        }
+      }
+      setError(errorMessage)
     } finally {
       setIsValidating(false)
     }
   }
 
   const filteredResults = (validationResult?.results || []).filter(item => {
-    const matchesSearch = item.account_id.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = searchQuery === '' || item.account_id.toLowerCase() === searchQuery.toLowerCase()
     const matchesRisk = riskFilter === 'ALL' || item.risk_level === riskFilter
     return matchesSearch && matchesRisk
   })
 
-  const muleCount = (validationResult?.results || []).filter(r => r.risk_score >= 0.3063).length
+  const handleDownloadCSV = () => {
+    if (!validationResult || !validationResult.results) return
+    const headers = ['Account ID', 'Risk Score (%)', 'Risk Level', 'HITL Band']
+    const rows = validationResult.results.map(row => [
+      row.account_id,
+      (row.risk_score / 10).toFixed(1),
+      row.risk_level,
+      row.human_review?.confidence_band || ''
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `validation_results_${validationResult.filename.replace('.csv', '')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const muleCount = (validationResult?.results || []).filter(r => (r.model_probability ?? (r.risk_score / 1000)) >= 0.3063).length
   const criticalCount = (validationResult?.results || []).filter(r => r.risk_level === 'Critical').length
   const highCount = (validationResult?.results || []).filter(r => r.risk_level === 'High').length
 
@@ -228,6 +262,17 @@ function ValidationPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  {/* Download CSV Button */}
+                  <button
+                    onClick={handleDownloadCSV}
+                    className="px-3.5 py-1.5 rounded-xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-navy-950 text-xs font-semibold transition flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export CSV
+                  </button>
+
                   {/* Search */}
                   <div className="relative">
                     <input
@@ -283,7 +328,7 @@ function ValidationPage() {
                           <td className="px-5 py-3.5 font-mono font-semibold text-foreground">{row.account_id}</td>
                           <td className="px-5 py-3.5">
                             <span className="font-mono font-bold text-body-sm" style={{ color: RISK_COLORS[row.risk_level] }}>
-                              {(row.risk_score * 100).toFixed(1)}%
+                              {(row.risk_score / 10).toFixed(1)}%
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
@@ -350,7 +395,7 @@ function ValidationPage() {
                 <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-1">
                   <p className="text-xs text-foreground-muted uppercase">Risk Level & Score</p>
                   <p className="text-lg font-bold" style={{ color: RISK_COLORS[selectedItem.risk_level] }}>
-                    {selectedItem.risk_level} ({(selectedItem.risk_score * 100).toFixed(1)}%)
+                    {selectedItem.risk_level} ({(selectedItem.risk_score / 10).toFixed(1)}%)
                   </p>
                 </div>
                 <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-1">

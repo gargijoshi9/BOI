@@ -232,10 +232,14 @@ export async function validateDataset(
 ): Promise<ValidationResponse> {
   const formData = new FormData()
   formData.append('file', file)
-  // Axios automatically sets the Content-Type to multipart/form-data when passing FormData
   const { data } = await api.post<ValidationResponse>(
     '/api/v1/validate', 
-    formData
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
   )
   return data
 }
