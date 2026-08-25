@@ -341,24 +341,282 @@ class MuleRiskAnalyzer:
             return self._graph_initializer.compute_network_intelligence(graph, account_id)
         except Exception:
             return {"nodes": [{"id": account_id, "type": "mule" if risk_score > 600 else "normal"}], "edges": []}
+  
+    def _build_shap_explanation(
+        self,
+        feature_code: str,
+        contribution: float,
+        feature_value
+    ) -> dict:
+        """
+        Convert a technical SHAP feature into an investigator-friendly
+        explanation.
 
+        The explanation combines:
+        - Feature dictionary metadata
+        - Actual account feature value
+        - SHAP contribution
+        - Direction of risk impact
+        """
+
+        info = translate_feature(str(feature_code))
+
+        description = str(info.get("description", "") or "")
+        variable_name = str(
+            info.get("variable_name", feature_code) or feature_code
+        )
+
+        contribution = float(contribution)
+
+        # ---------------------------------------------------------
+        # 1. Determine SHAP direction
+        # ---------------------------------------------------------
+        if contribution > 0:
+            direction = "increases_risk"
+            direction_text = "increases"
+        elif contribution < 0:
+            direction = "reduces_risk"
+            direction_text = "reduces"
+        else:
+            direction = "neutral"
+            direction_text = "has little effect on"
+
+        # ---------------------------------------------------------
+        # 2. Convert feature value to JSON-safe Python value
+        # ---------------------------------------------------------
+        if pd.isna(feature_value):
+            safe_value = None
+        elif isinstance(feature_value, (np.integer,)):
+            safe_value = int(feature_value)
+        elif isinstance(feature_value, (np.floating,)):
+            safe_value = round(float(feature_value), 4)
+        else:
+            safe_value = str(feature_value)
+
+        # ---------------------------------------------------------
+        # 3. Build a semantically accurate feature title
+        # ---------------------------------------------------------
+
+        desc_lower = description.lower()
+        variable_lower = variable_name.lower()
+
+        # UPI features
+        if "upi" in desc_lower or "upi" in variable_lower:
+
+            if (
+                "amt" in variable_lower
+                or "amount" in desc_lower
+            ):
+                title = "UPI transaction amount pattern"
+
+            elif (
+                "txn" in variable_lower
+                or "transaction" in desc_lower
+            ):
+                title = "UPI transaction activity"
+
+            else:
+                title = "UPI behavioral pattern"
+
+        # Non-cash / non-cheque debit features
+        elif (
+            "non_cash" in variable_lower
+            or "non cash" in desc_lower
+        ):
+
+            if (
+                "db" in variable_lower
+                or "debit" in desc_lower
+            ):
+                title = "Non-cash debit transaction activity"
+
+            elif (
+                "cr" in variable_lower
+                or "credit" in desc_lower
+            ):
+                title = "Non-cash credit transaction activity"
+
+            else:
+                title = "Non-cash transaction activity"
+
+        # Electronic / online transfers
+        elif (
+            "elec_xfer" in variable_lower
+            or "online transfer" in desc_lower
+            or "imps" in desc_lower
+            or "neft" in desc_lower
+            or "rtgs" in desc_lower
+        ):
+
+            if (
+                "amt" in variable_lower
+                or "amount" in desc_lower
+            ):
+                title = "Online transfer amount pattern"
+
+            elif (
+                "txn" in variable_lower
+                or "transaction" in desc_lower
+            ):
+                title = "Online transfer activity"
+
+            else:
+                title = "Online transfer behavior"
+
+        # Pass-through behavior
+        elif (
+            "pass_through" in variable_lower
+            or "pass through" in desc_lower
+            or "passthrough" in variable_lower
+        ):
+            title = "Pass-through transaction behavior"
+
+        # Transaction concentration
+        elif "concentration" in desc_lower:
+            title = "Transaction concentration pattern"
+
+        # Behavioural deviation
+        elif "deviation" in desc_lower:
+
+            if "amount" in desc_lower or "amt" in variable_lower:
+                title = "Transaction amount deviation"
+
+            elif "txn" in desc_lower or "transaction" in desc_lower:
+                title = "Transaction frequency deviation"
+
+            else:
+                title = "Behavioral deviation"
+
+        # Generic transaction activity
+        elif (
+            "txn" in desc_lower
+            or "transaction" in desc_lower
+        ):
+            title = "Transaction activity pattern"
+
+        # Average activity
+        elif (
+            "average" in desc_lower
+            or "avg" in variable_lower
+        ):
+            title = "Average account activity"
+
+        else:
+            title = "Behavioral risk indicator"
+
+        # ---------------------------------------------------------
+        # 4. Build investigator-friendly explanation
+        # ---------------------------------------------------------
+
+        if safe_value is not None:
+
+            if direction == "increases_risk":
+
+                explanation = (
+                    f"{title} is contributing to higher mule risk. "
+                    f"The observed feature value is {safe_value}, "
+                    f"with a SHAP contribution of {contribution:.3f}."
+                )
+
+            elif direction == "reduces_risk":
+
+                explanation = (
+                    f"{title} is contributing to lower mule risk. "
+                    f"The observed feature value is {safe_value}, "
+                    f"with a SHAP contribution of {contribution:.3f}."
+                )
+
+            else:
+
+                explanation = (
+                    f"{title} has limited influence on the current risk score. "
+                    f"The observed feature value is {safe_value}."
+                )
+
+        else:
+
+            explanation = (
+                f"{title} contributes to the model's risk assessment. "
+                f"The feature value is unavailable."
+            )
+        # ---------------------------------------------------------
+        # 5. Return complete SHAP explanation
+        # ---------------------------------------------------------
+
+        return {
+            "feature": str(feature_code),
+            "variable_name": variable_name,
+            "display_name": title,
+            "description": description,
+            "feature_value": safe_value,
+            "contribution": round(contribution, 4),
+            "importance": round(abs(contribution), 4),
+            "direction": direction,
+            "explanation": explanation,
+        }
     def _explain(self, model_input: pd.DataFrame) -> list:
-        if self._shap_explainer is None: return []
+        """
+        Generate the top SHAP explanations for an account.
+
+        Each explanation contains:
+        - original feature code
+        - human-readable variable name
+        - data dictionary description
+        - actual account feature value
+        - SHAP contribution
+        - risk direction
+        - investigator-friendly explanation
+        """
+
+        if self._shap_explainer is None:
+            return []
+
         try:
             shap_values = self._shap_explainer.shap_values(model_input)
-            row_values = shap_values[0] if len(shap_values.shape) > 1 else shap_values
-            contributions = sorted(zip(model_input.columns, row_values), key=lambda x: abs(x[1]), reverse=True)[:5]
+
+            # SHAP normally returns:
+            #   (n_samples, n_features)
+            # For a single account we only need the first row.
+            if hasattr(shap_values, "values"):
+                shap_values = shap_values.values
+
+            shap_values = np.asarray(shap_values)
+
+            if shap_values.ndim == 1:
+                row_values = shap_values
+            elif shap_values.ndim == 2:
+                row_values = shap_values[0]
+            else:
+                row_values = shap_values[0]
+
+            contributions = sorted(
+                zip(model_input.columns, row_values),
+                key=lambda x: abs(float(x[1])),
+                reverse=True
+            )[:5]
+
             result = []
-            for f, v in contributions:
-                info = translate_feature(str(f))
-                result.append({
-                    "feature": str(f),
-                    "contribution": round(float(v), 4),
-                    "display_name": info["variable_name"],
-                    "description": info["description"],
-                })
+
+            for feature_code, contribution in contributions:
+
+                # Get the actual account value for this feature.
+                try:
+                    feature_value = model_input.iloc[0][feature_code]
+                except Exception:
+                    feature_value = None
+
+                result.append(
+                    self._build_shap_explanation(
+                        feature_code=str(feature_code),
+                        contribution=float(contribution),
+                        feature_value=feature_value
+                    )
+                )
+
             return result
-        except Exception:
+
+        except Exception as e:
+            print(f"[SHAP] Explanation generation failed: {e}")
             return []
 
     # Simulator removed to guarantee data authenticity

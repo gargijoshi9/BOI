@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 # ==========================================
@@ -7,9 +7,14 @@ from pydantic import BaseModel, Field
 
 class ShapContribution(BaseModel):
     feature: str
-    contribution: float
+    variable_name: Optional[str] = None
     display_name: Optional[str] = None
     description: Optional[str] = None
+    feature_value: Optional[Any] = None
+    contribution: float
+    importance: Optional[float] = None
+    direction: Optional[str] = None
+    explanation: Optional[str] = None
 
 class GraphNode(BaseModel):
     id: str

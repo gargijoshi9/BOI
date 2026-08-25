@@ -62,11 +62,16 @@ function ShapWidget({ shapExplanation }: ShapWidgetProps) {
               key={f.feature}
               className="flex flex-row items-center gap-4"
             >
-              <span
-                className="w-44 truncate text-xs"
-                style={{ color: '#94a3b8' }}
+             <span
+                  className="w-56 truncate text-xs"
+                  style={{ color: '#94a3b8' }}
+                  title={
+                  f.description
+                  ? `${f.display_name || f.feature}: ${f.description}`
+                  : f.display_name || f.feature
+                        }
               >
-                {f.feature}
+                 {f.display_name || f.description || f.feature}
               </span>
               <div
                 className="relative h-[6px] flex-1"

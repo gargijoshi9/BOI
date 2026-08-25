@@ -101,7 +101,7 @@ function ValidationPage() {
     document.body.removeChild(link)
   }
 
-  const muleCount = (validationResult?.results || []).filter(r => (r.model_probability ?? (r.risk_score / 1000)) >= 0.3063).length
+  const muleCount = (validationResult?.results || []).filter(r => r.risk_score >= 450).length
   const criticalCount = (validationResult?.results || []).filter(r => r.risk_level === 'Critical').length
   const highCount = (validationResult?.results || []).filter(r => r.risk_level === 'High').length
 
