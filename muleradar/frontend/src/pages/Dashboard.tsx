@@ -479,15 +479,6 @@ function Dashboard() {
                 </div>
                 <span className="text-xs text-foreground-muted">Evaluated in current batch</span>
               </div>
-              
-              <div className="p-5 rounded-2xl bg-background-card/80 border border-risk-high/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-risk-high/10 rounded-bl-full blur-xl pointer-events-none"></div>
-                <span className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Flagged for Review</span>
-                <div className="flex items-end justify-between mt-1">
-                  <span className="text-3xl font-bold text-risk-high font-mono">{globalStats.flagged.toLocaleString()}</span>
-                </div>
-                <span className="text-xs text-risk-high/80">Top ~{(globalStats.flagged / Math.max(globalStats.total, 1) * 100).toFixed(1)}% by risk score</span>
-              </div>
 
               <div className="p-5 rounded-2xl bg-background-card/80 border border-risk-critical/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-risk-critical/10 rounded-bl-full blur-xl pointer-events-none"></div>
@@ -505,7 +496,16 @@ function Dashboard() {
                 </div>
                 <span className="text-xs text-foreground-muted">Across all evaluated accounts</span>
               </div>
-            </div>
+
+             <div className="p-5 rounded-2xl bg-background-card/80 border border-risk-high/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-risk-high/10 rounded-bl-full blur-xl pointer-events-none"></div>
+                <span className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Flagged for Review</span>
+                <div className="flex items-end justify-between mt-1">
+                  <span className="text-3xl font-bold text-risk-high font-mono">{globalStats.flagged.toLocaleString()}</span>
+                </div>
+                <span className="text-xs text-risk-high/80">Top ~{(globalStats.flagged / Math.max(globalStats.total, 1) * 100).toFixed(1)}% by risk score</span>
+              </div>
+              </div>
 
             {/* Methodology Disclaimer Banner */}
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
