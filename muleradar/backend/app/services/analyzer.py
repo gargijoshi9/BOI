@@ -282,7 +282,38 @@ class MuleRiskAnalyzer:
 
             inflows = pd.to_numeric(df[_INFLOW_COL], errors='coerce').fillna(0.0).values if _INFLOW_COL in df.columns else np.zeros(len(df))
             cash_outs = pd.to_numeric(df[_CASH_OUT_COL], errors='coerce').fillna(0.0).values if _CASH_OUT_COL in df.columns else np.zeros(len(df))
-            acct_types = df[_ACCT_TYPE_COL].fillna("Unknown").astype(str).values if _ACCT_TYPE_COL in df.columns else np.full(len(df), "Unknown")
+            VALID_ACCOUNT_TYPES = {
+                 "Savings",
+                 "Current",
+                 "MSME Micro",
+                 "MSME Small",
+                 "MSME Medium",
+                 "Staff Loans",
+                 "Agri Adv",
+                 "Term Deposit",
+                 "Gold Loan",
+                 "Corp Adv",
+                 "Retail Others",
+                 "MSME LA TDR",
+                 "Retail LA TDR",
+                 "All Others",
+                 "HL",
+                 "ML",
+                 "PL",
+            }
+
+            if _ACCT_TYPE_COL in df.columns:
+                acct_types = (
+                    df[_ACCT_TYPE_COL]
+                    .fillna("Unknown")
+                    .astype(str)
+                    .str.strip()
+                    .apply(lambda x: x if x in VALID_ACCOUNT_TYPES else "Unknown")
+                    .values
+                    )
+            else:
+                acct_types = np.full(len(df), "Unknown")
+                
             occupations = df[_OCCUPATION_COL].fillna("Unknown").astype(str).values if _OCCUPATION_COL in df.columns else np.full(len(df), "Unknown")
             ages = pd.to_numeric(df[_AGE_COL], errors='coerce').fillna(0).astype(int).values if _AGE_COL in df.columns else np.zeros(len(df), dtype=int)
             acc_ids = df['account_id'].values

@@ -56,7 +56,7 @@ function AuditPage() {
               </span>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold text-foreground mt-2 tracking-tight">
-              Human-in-the-Loop Audit Trail & Action History
+              Risk Review Centre Trail & Action History
             </h1>
             <p className="text-body-sm text-foreground-muted mt-1">
               Immutable logging of compliance investigator decisions, account freeze actions, and SAR filings.
@@ -153,7 +153,7 @@ function AuditPage() {
                   {filteredTrail.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-5 py-8 text-center text-foreground-muted">
-                        No audit records found. Resolve items in the HITL Review Queue to populate audit records.
+                        No audit records found. Resolve items in the Investigation Queue to populate audit records.
                       </td>
                     </tr>
                   ) : (

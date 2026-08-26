@@ -2,22 +2,8 @@ import { useState } from 'react'
 import PageShell from '../components/PageShell'
 import NetworkGraph from '../components/NetworkGraph'
 import { useApp } from '../context/AppContext'
-import { WidgetShell, WidgetTitle } from '../components/RiskScoreWidget'
+import { WidgetShell } from '../components/RiskScoreWidget'
 
-function StatCard({ value, label, icon }: { value: string; label: string; icon?: React.ReactNode }) {
-  return (
-    <WidgetShell className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-[rgba(0,212,170,0.03)] to-transparent" />
-      <div className="relative flex flex-col">
-        <div className="flex flex-row items-center justify-between">
-          {icon && <div className="text-2xl opacity-80">{icon}</div>}
-          <span className="font-mono font-bold text-2xl text-foreground">{value}</span>
-        </div>
-        <span className="mt-2 stat-label">{label}</span>
-      </div>
-    </WidgetShell>
-  )
-}
 
 function NetworkPage() {
   const { currentAccount, evaluateAccount, isEvaluating, recentEvaluations } = useApp()

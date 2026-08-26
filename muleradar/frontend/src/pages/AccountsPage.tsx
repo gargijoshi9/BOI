@@ -51,7 +51,7 @@ function AccountsPage() {
   const [error, setError] = useState<string | null>(null)
   
   const [showDetail, setShowDetail] = useState(false)
-  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailLoading] = useState(false)
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   
