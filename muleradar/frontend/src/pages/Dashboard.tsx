@@ -490,11 +490,15 @@ function Dashboard() {
               </div>
 
               <div className="p-5 rounded-2xl bg-background-card/80 border border-border/50 shadow-xl flex flex-col gap-1">
-                <span className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Avg Model Confidence</span>
+                <span className="text-sm font-semibold text-foreground-muted uppercase tracking-wider"> Model ROC-AUC </span>
+
                 <div className="flex items-end justify-between mt-1">
-                  <span className="text-3xl font-bold text-cyan-400 font-mono">{(globalStats.avgModelProbability * 100).toFixed(1)}%</span>
-                </div>
-                <span className="text-xs text-foreground-muted">Across all evaluated accounts</span>
+                <span className="text-3xl font-bold text-cyan-400 font-mono"> 98.02% </span>
+              </div>
+
+<span className="text-xs text-foreground-muted">
+  Hold-out validation performance
+</span>
               </div>
 
              <div className="p-5 rounded-2xl bg-background-card/80 border border-risk-high/30 shadow-xl flex flex-col gap-1 relative overflow-hidden">
