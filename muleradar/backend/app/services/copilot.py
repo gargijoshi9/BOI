@@ -1,6 +1,7 @@
-# backend/app/services/copilot.py
 import os
+import re
 import requests
+import sys
 from pathlib import Path
 from typing import Dict, Any, List
 from dotenv import load_dotenv
@@ -10,6 +11,19 @@ env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 if not env_path.exists():
     env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
+
+_ML_PIPELINE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "ml_pipeline"
+if not _ML_PIPELINE_DIR.exists():
+    _ML_PIPELINE_DIR = Path(__file__).resolve().parent.parent.parent / "ml_pipeline"
+_EXPLAINABILITY_DIR = _ML_PIPELINE_DIR / "src" / "explainability"
+if str(_EXPLAINABILITY_DIR) not in sys.path:
+    sys.path.insert(0, str(_EXPLAINABILITY_DIR))
+
+try:
+    from feature_dictionary import translate_feature
+except ImportError:
+    def translate_feature(f):
+        return {"code": f, "variable_name": f, "description": "Not found in data dictionary"}
 
 FEATURE_DISPLAY_NAMES: Dict[str, str] = {
     "F115": "Cheque Usage Ratio",
@@ -49,18 +63,55 @@ FEATURE_DISPLAY_NAMES: Dict[str, str] = {
     "VELOCITY_PROXY": "Transaction Velocity Score",
 }
 
-def _format_feature(raw: str) -> str:
-    if raw in FEATURE_DISPLAY_NAMES:
-        return FEATURE_DISPLAY_NAMES[raw]
-    if raw.endswith('_was_missing'):
-        base = raw[:-12]
-        return f"{FEATURE_DISPLAY_NAMES.get(base, base)} (Missing Indicator)"
-    return raw.replace('_', ' ')
+def _format_feature(item: Any) -> str:
+    if isinstance(item, str):
+        feat_code = item
+        item_dict = {}
+    elif isinstance(item, dict):
+        feat_code = item.get("feature", "")
+        item_dict = item
+    else:
+        return "Unknown Indicator"
+
+    desc = item_dict.get("description")
+    if desc and desc != "Not found in data dictionary" and not re.match(r"^F\d+$", desc.strip()):
+        return re.sub(r"^F\d+\s*[-:]\s*", "", desc)
+
+    is_missing = False
+    clean_code = feat_code
+    if clean_code.endswith("_was_missing"):
+        is_missing = True
+        clean_code = clean_code[:-12]
+
+    if clean_code in FEATURE_DISPLAY_NAMES:
+        name = FEATURE_DISPLAY_NAMES[clean_code]
+        return f"{name} (Missing Indicator)" if is_missing else name
+
+    translated = translate_feature(clean_code)
+    t_desc = translated.get("description", "")
+    t_var = translated.get("variable_name", "")
+
+    if t_desc and t_desc != "Not found in data dictionary":
+        clean_desc = re.sub(r"^F\d+\s*[-:]\s*", "", t_desc)
+        return f"{clean_desc} (Missing Indicator)" if is_missing else clean_desc
+
+    if t_var and t_var != clean_code and not re.match(r"^F\d+$", t_var):
+        clean_var = t_var.replace("_", " ")
+        return f"{clean_var} (Missing Indicator)" if is_missing else clean_var
+
+    display_name = item_dict.get("display_name")
+    if display_name and not re.match(r"^F\d+$", display_name):
+        return f"{display_name} (Missing Indicator)" if is_missing else display_name
+
+    clean_fallback = re.sub(r"^F\d+_*", "", clean_code).replace("_", " ").strip()
+    if not clean_fallback:
+        clean_fallback = "Behavioral Risk Feature"
+    return f"{clean_fallback} (Missing Indicator)" if is_missing else clean_fallback
 
 def generate_ai_explanation(report: Dict[str, Any]) -> str:
     """
-    Generates a 100% deterministic, structured 4-bullet GenAI AML investigation summary.
-    Uses OPENAI_API_KEY from .env with temperature=0.0 and standardized compliance headings.
+    Generates a structured 4-bullet GenAI AML investigation summary.
+    Translates raw SHAP feature codes into clear human-readable descriptions.
     """
     account_id = str(report.get("account_id", "Unknown"))
     risk_score = report.get("risk_score", 0)
@@ -76,7 +127,7 @@ def generate_ai_explanation(report: Dict[str, Any]) -> str:
     edges_count = len(report.get("network_connections", {}).get("links", []))
     
     shap_items = report.get("shap_explanation", [])[:4]
-    shap_str_list = [f"{_format_feature(item['feature'])} ({item['contribution']:+.3f})" for item in shap_items]
+    shap_str_list = [f"{_format_feature(item)} ({item['contribution']:+.3f})" if isinstance(item, dict) and 'contribution' in item else _format_feature(item) for item in shap_items]
     shap_summary = ", ".join(shap_str_list) if shap_str_list else "High pass-through ratio & narrow counterparty network"
 
     if risk_score >= 600:
@@ -93,20 +144,19 @@ def generate_ai_explanation(report: Dict[str, Any]) -> str:
     if raw_key and raw_key != "your_openai_api_key_here":
         try:
             prompt = (
-                f"You are a Senior Anti-Money Laundering (AML) Officer. Write a strictly formatted 4-bullet compliance summary for account {account_id}.\n\n"
+                f"You are a Senior Anti-Money Laundering (AML) Officer for Bank of India. Analyze the following suspicious account metrics and generate a concise 4-bullet compliance investigation summary for account {account_id}.\n\n"
                 f"Account Data:\n"
-                f"- Risk Score: {risk_score}/1000 ({risk_level} Tier)\n"
+                f"- Risk Score: {risk_score}/1000 ({risk_level} Risk Tier)\n"
                 f"- Kill Chain Stage: {kill_stage}\n"
                 f"- Fraud Exposure: INR {total_exposure:,.0f} (Recoverable: INR {recoverable:,.0f}, In-Transit: INR {in_transit:,.0f})\n"
-                f"- Network Graph: {nodes_count} connected counterparties across {edges_count} transfers\n"
-                f"- Key SHAP Risk Drivers: {shap_summary}\n"
-                f"- Recommended Action: {recommended_action}\n\n"
+                f"- Counterparty Network: {nodes_count} connected counterparties across {edges_count} transfers\n"
+                f"- Key SHAP Risk Drivers: {shap_summary}\n\n"
                 f"STRICT OUTPUT FORMAT:\n"
-                f"Output EXACTLY 4 bullet points starting with '• ' using these exact headings:\n"
-                f"• Risk Score & Assessment: State Risk Score ({risk_score}/1000), Tier ({risk_level}), and Kill Chain Stage ({kill_stage}).\n"
-                f"• Key Behavioral Drivers: Summarize the top SHAP features ({shap_summary}).\n"
-                f"• Network & Financial Exposure: Summarize counterparties ({nodes_count}) and exposure (₹{total_exposure:,.0f}).\n"
-                f"• Actionable Next Step: State exact recommendation ({recommended_action}).\n"
+                f"Output EXACTLY 4 bullet points starting with '• ' using these headings:\n"
+                f"• Risk Score & Assessment: Evaluate the overall risk score, tier, and kill chain stage.\n"
+                f"• Key Behavioral Drivers: Explain the significance of the top SHAP risk drivers.\n"
+                f"• Network & Financial Exposure: Assess the financial risk and counterparty exposure.\n"
+                f"• Actionable Next Step: Provide concrete, compliance-driven next steps (such as Auto-Freeze under PMLA Section 17, filing STR to FIU-IND, Re-KYC, or standard monitoring depending on severity).\n\n"
                 f"Do not add any intro, outro, or additional text."
             )
 
