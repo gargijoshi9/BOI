@@ -431,10 +431,9 @@ function Dashboard() {
                 isSimulated={currentAccount.is_simulated}
               />
               <div className="rounded-2xl border border-border/50 bg-background/40 p-5 flex flex-col justify-between space-y-4">
-                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3.5 rounded-xl bg-background-card border border-border/40">
-                    <span className="stat-label">Kill Chain Stage</span>
-                    <p className="mt-1 font-bold text-sm text-amber-400">{(currentAccount as any).kill_chain_stage || 'None'}</p>
+                    <span className="stat-label">Model Status</span>
+                    <p className="mt-1 font-bold text-sm text-emerald-400">Live Active</p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-background-card border border-border/40">
                     <span className="stat-label">Network Counterparties</span>
@@ -442,9 +441,8 @@ function Dashboard() {
                       {currentAccount.network_connections?.nodes.length ?? 0} Nodes
                     </p>
                   </div>
-                </div>
 
-                <div className="pt-2">
+                  <div className="pt-2">
                   <span className="stat-label">Adjudication Action</span>
                   <div className="mt-2">
                     {currentAccount.human_review?.confidence_band === 'AUTO_BLOCK' ? (

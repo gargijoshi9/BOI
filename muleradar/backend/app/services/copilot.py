@@ -116,15 +116,16 @@ def generate_ai_explanation(report: Dict[str, Any]) -> str:
     account_id = str(report.get("account_id", "Unknown"))
     risk_score = report.get("risk_score", 0)
     risk_level = report.get("risk_level", "Low")
-    kill_stage = report.get("kill_chain_stage", "None")
     
     damage = report.get("damage_metrics", {})
     recoverable = damage.get("recoverable_amount", 0)
     in_transit = damage.get("in_transit_amount", 0)
     total_exposure = recoverable + in_transit
     
-    nodes_count = len(report.get("network_connections", {}).get("nodes", []))
-    edges_count = len(report.get("network_connections", {}).get("links", []))
+    nodes_list = report.get("network_connections", {}).get("nodes") or []
+    nodes_count = len(nodes_list)
+    edges_list = report.get("network_connections", {}).get("links") or report.get("network_connections", {}).get("edges") or []
+    edges_count = len(edges_list)
     
     shap_items = report.get("shap_explanation", [])[:4]
     shap_str_list = [f"{_format_feature(item)} ({item['contribution']:+.3f})" if isinstance(item, dict) and 'contribution' in item else _format_feature(item) for item in shap_items]
@@ -147,13 +148,12 @@ def generate_ai_explanation(report: Dict[str, Any]) -> str:
                 f"You are a Senior Anti-Money Laundering (AML) Officer for Bank of India. Analyze the following suspicious account metrics and generate a concise 4-bullet compliance investigation summary for account {account_id}.\n\n"
                 f"Account Data:\n"
                 f"- Risk Score: {risk_score}/1000 ({risk_level} Risk Tier)\n"
-                f"- Kill Chain Stage: {kill_stage}\n"
                 f"- Fraud Exposure: INR {total_exposure:,.0f} (Recoverable: INR {recoverable:,.0f}, In-Transit: INR {in_transit:,.0f})\n"
                 f"- Counterparty Network: {nodes_count} connected counterparties across {edges_count} transfers\n"
                 f"- Key SHAP Risk Drivers: {shap_summary}\n\n"
                 f"STRICT OUTPUT FORMAT:\n"
                 f"Output EXACTLY 4 bullet points starting with '• ' using these headings:\n"
-                f"• Risk Score & Assessment: Evaluate the overall risk score, tier, and kill chain stage.\n"
+                f"• Risk Score & Assessment: Evaluate the overall risk score and risk tier.\n"
                 f"• Key Behavioral Drivers: Explain the significance of the top SHAP risk drivers.\n"
                 f"• Network & Financial Exposure: Assess the financial risk and counterparty exposure.\n"
                 f"• Actionable Next Step: Provide concrete, compliance-driven next steps (such as Auto-Freeze under PMLA Section 17, filing STR to FIU-IND, Re-KYC, or standard monitoring depending on severity).\n\n"
@@ -195,7 +195,7 @@ def generate_ai_explanation(report: Dict[str, Any]) -> str:
             print(f"GenAI LLM API call warning: {err}. Using deterministic AML synthesis.")
 
     # 100% Deterministic Fallback
-    b1 = f"• Risk Score & Assessment: Account {account_id} scored {risk_score}/1000 ({risk_level} Risk Tier) operating in the {kill_stage} stage."
+    b1 = f"• Risk Score & Assessment: Account {account_id} scored {risk_score}/1000 ({risk_level} Risk Tier)."
     b2 = f"• Key Behavioral Drivers: SHAP feature attributions: {shap_summary}."
     b3 = f"• Network & Financial Exposure: {nodes_count} connected counterparties with ₹{total_exposure:,.0f} total exposure."
     b4 = f"• Actionable Next Step: {recommended_action}"

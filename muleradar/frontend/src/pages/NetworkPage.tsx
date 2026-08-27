@@ -2,7 +2,6 @@ import { useState } from 'react'
 import PageShell from '../components/PageShell'
 import NetworkGraph from '../components/NetworkGraph'
 import { useApp } from '../context/AppContext'
-import { WidgetShell } from '../components/RiskScoreWidget'
 
 
 function NetworkPage() {

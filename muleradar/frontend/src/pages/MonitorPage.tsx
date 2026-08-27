@@ -14,7 +14,7 @@ const TOP_FEATURES: FeatureHealth[] = [
   { name: 'pass_through_ratio', category: 'Behavioral DNA', shapImportance: 0.3421, driftStatus: 'Stable', purgedProxy: false },
   { name: 'sudden_activation_score', category: 'Behavioral DNA', shapImportance: 0.2894, driftStatus: 'Stable', purgedProxy: false },
   { name: 'narrow_network_interaction', category: 'Graph Network', shapImportance: 0.2450, driftStatus: 'Stable', purgedProxy: false },
-  { name: 'cash_drain_velocity', category: 'Fraud Kill Chain', shapImportance: 0.1764, driftStatus: 'Stable', purgedProxy: false },
+  { name: 'cash_drain_velocity', category: 'Behavioral Pattern', shapImportance: 0.1764, driftStatus: 'Stable', purgedProxy: false },
   { name: 'counterparty_entropy', category: 'Graph Network', shapImportance: 0.1289, driftStatus: 'Stable', purgedProxy: false },
 ]
 

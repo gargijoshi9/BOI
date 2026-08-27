@@ -7,10 +7,10 @@ Extends mathematical SHAP explanations with LLM-generated executive summaries
 and regulatory investigation reports.
 
 This module fulfills the explainability layer contract:
-1. Consumes structured AccountExplanation objects or intelligence dicts.
-2. Formats precise AML context (risk score, kill chain stage, top SHAP drivers, additivity status).
-3. Queries OpenAI/OpenRouter for natural language investigator summaries.
-4. Provides deterministic fallback summaries when API keys are absent or offline.
+10. Consumes structured AccountExplanation objects or intelligence dicts.
+11. Formats precise AML context (risk score, top SHAP drivers, additivity status).
+12. Queries OpenAI/OpenRouter for natural language investigator summaries.
+13. Provides deterministic fallback summaries when API keys are absent or offline.
 """
 
 from __future__ import annotations
@@ -152,7 +152,6 @@ class GenAIReportGenerator:
                 "account_id": intelligence_data.account_id,
                 "risk_score": intelligence_data.predicted_score,
                 "risk_level": "Critical" if intelligence_data.predicted_score > 800 else "High" if intelligence_data.predicted_score > 600 else "Medium" if intelligence_data.predicted_score > 400 else "Low",
-                "kill_chain_stage": "Layering" if intelligence_data.predicted_score > 800 else "Placement" if intelligence_data.predicted_score > 600 else "Integration" if intelligence_data.predicted_score > 400 else "None",
                 "shap_explanation": [
                     {"feature": c.display_name, "contribution": c.shap_value, "direction": c.direction}
                     for c in intelligence_data.top_contributions
@@ -165,7 +164,6 @@ class GenAIReportGenerator:
         account_id = payload.get("account_id", "Unknown")
         risk_score = payload.get("risk_score", 0)
         risk_level = payload.get("risk_level", "Unknown")
-        kill_chain_stage = payload.get("kill_chain_stage", "None")
         shap_explanation = payload.get("shap_explanation", [])
         narrative = payload.get("narrative_summary", "")
 
@@ -174,22 +172,19 @@ class GenAIReportGenerator:
             f"Provide a concise, professional 3-sentence summary of the flagged account based on the following risk intelligence:\n\n"
             f"- Account ID: {account_id}\n"
             f"- Risk Score: {risk_score}/1000 ({risk_level} Risk)\n"
-            f"- Kill Chain Stage: {kill_chain_stage}\n"
             f"- SHAP Feature Drivers: {shap_explanation}\n"
             f"- Base Feature Narrative: {narrative}\n\n"
-            f"Highlight the critical risk factors, kill chain placement, and recommended immediate action for compliance."
+            f"Highlight the critical risk factors and recommended immediate action for compliance."
         )
 
     def _build_fallback_summary(self, payload: dict[str, Any], error_note: Optional[str] = None) -> str:
         account_id = payload.get("account_id", "Unknown")
         risk_score = payload.get("risk_score", 0)
         risk_level = payload.get("risk_level", "Unknown")
-        kill_chain_stage = payload.get("kill_chain_stage", "None")
         narrative = payload.get("narrative_summary", "")
 
         base = (
             f"Account {account_id} is flagged with a {risk_level} risk level (Risk Score: {risk_score}/1000). "
-            f"The account is currently classified in the '{kill_chain_stage}' stage of the money laundering kill chain. "
         )
         if narrative:
             base += f"{narrative} Immediate AML compliance review is recommended."

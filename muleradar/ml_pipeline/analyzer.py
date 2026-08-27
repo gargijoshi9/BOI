@@ -106,10 +106,10 @@ class MuleRiskAnalyzer:
         return int(round(min(max(score, 0), 1000)))
 
     def _bucket_risk(self, risk_score: int):
-        if risk_score >= 900: return "Critical", "Layering"
-        elif risk_score >= 750: return "High", "Placement"
-        elif risk_score >= 450: return "Medium", "Integration"
-        return "Low", "None"
+        if risk_score >= 900: return "Critical"
+        elif risk_score >= 750: return "High"
+        elif risk_score >= 450: return "Medium"
+        return "Low"
 
     def _route_hitl(self, risk_score: int, is_anomaly: bool) -> dict:
         if risk_score >= 900: band, requires_review, reason = "AUTO_BLOCK", False, None
@@ -143,7 +143,7 @@ class MuleRiskAnalyzer:
 
             scaled_anom_score = round(min(max(0.5 - if_score, 0.0), 1.0), 2)
             risk_score = self._compute_risk_score(proba)
-            level, stage = self._bucket_risk(risk_score)
+            level = self._bucket_risk(risk_score)
 
             return {
                 "account_id": account_id,
@@ -154,7 +154,6 @@ class MuleRiskAnalyzer:
                 "model_probability": proba, 
                 "risk_score": risk_score,
                 "risk_level": level,
-                "kill_chain_stage": stage,
                 "damage_metrics": self._estimate_damage(raw_row, proba),
                 "model_component_scores": {
                     "xgb_probability": xgb_proba, "lgbm_probability": lgbm_proba, "cat_probability": cat_proba,
@@ -199,12 +198,12 @@ class MuleRiskAnalyzer:
             for i in range(len(df)):
                 p, anom = float(probas[i]), bool(is_anomalies[i])
                 r_score = self._compute_risk_score(p)
-                lvl, stg = self._bucket_risk(r_score)
+                lvl = self._bucket_risk(r_score)
                 
                 results.append({
                     "account_id": str(acc_ids[i]), "account_type": str(acct_types[i]), "occupation": str(occupations[i]), "age": int(ages[i]),
                     "anomaly_score": round(min(max(0.5 - float(if_scores[i]), 0.0), 1.0), 2),
-                    "model_probability": p, "risk_score": r_score, "risk_level": lvl, "kill_chain_stage": stg,
+                    "model_probability": p, "risk_score": r_score, "risk_level": lvl,
                     "damage_metrics": {"recoverable_amount": round(max(float(inflows[i]) - float(cash_outs[i]), 0.0) * p, 2), "in_transit_amount": round(float(cash_outs[i]) * p, 2), "is_estimated": True},
                     "model_component_scores": {"xgb_probability": float(xgb_proba[i]), "lgbm_probability": float(lgbm_proba[i]), "cat_probability": float(cat_proba[i]), "anomaly_score_if": float(if_scores[i]), "combination_method": "stacked" if self.use_stacking else "blend"},
                     "shap_explanation": [], 
@@ -253,7 +252,7 @@ class MuleRiskAnalyzer:
             return []
 
     def _run_simulated_inference(self, account_id: str) -> dict:
-        return {"account_id": account_id, "risk_score": 0, "risk_level": "Low", "kill_chain_stage": "None", "damage_metrics": {"recoverable_amount": 0.0, "in_transit_amount": 0.0, "is_estimated": True}, "shap_explanation": [], "network_connections": {"nodes": [], "edges": []}, "human_review": {"requires_review": False, "confidence_band": "AUTO_CLEAR", "anomaly_flagged": False}, "is_simulated": True, "was_seen_during_training": False}
+        return {"account_id": account_id, "risk_score": 0, "risk_level": "Low", "damage_metrics": {"recoverable_amount": 0.0, "in_transit_amount": 0.0, "is_estimated": True}, "shap_explanation": [], "network_connections": {"nodes": [], "edges": []}, "human_review": {"requires_review": False, "confidence_band": "AUTO_CLEAR", "anomaly_flagged": False}, "is_simulated": True, "was_seen_during_training": False}
 
     def evaluate_account(self, account_id: str) -> dict:
         if self.artifact is not None:

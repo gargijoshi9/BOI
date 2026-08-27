@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-const KILL_CHAIN_STEPS = [
+const FRAUD_LIFECYCLE_STEPS = [
   { id: '01', title: 'Infiltration', desc: 'Synthetic ID / ATO' },
   { id: '02', title: 'Dormancy', desc: 'Aging to build trust' },
   { id: '03', title: 'Layering', desc: 'Receiving illicit funds' },
@@ -45,7 +45,7 @@ function Hero() {
 
           <div className="mt-20 w-full max-w-5xl mx-auto relative animate-slide-up stagger-4">
             <p className="text-sm font-medium text-foreground-muted uppercase tracking-widest mb-8 text-center">
-              Intercepting the Mule Fraud Kill Chain
+              Intercepting the Mule Fraud Lifecycle
             </p>
             <div className="relative">
               {/* Connecting Line */}
@@ -53,7 +53,7 @@ function Hero() {
               <div className="absolute top-1/2 left-0 w-[60%] h-0.5 bg-gradient-to-r from-accent to-transparent -translate-y-1/2 hidden md:block"></div>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {KILL_CHAIN_STEPS.map((step, index) => (
+                {FRAUD_LIFECYCLE_STEPS.map((step, index) => (
                   <div key={step.id} className="relative group h-full">
                     <div className="relative z-10 flex flex-col items-center bg-background p-4 rounded-xl border border-white/5 shadow-xl transition-transform hover:-translate-y-1 h-full">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-4 border ${index < 2 ? 'border-accent/50 text-accent bg-accent/10 shadow-[0_0_15px_rgba(0,255,170,0.3)]' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}>

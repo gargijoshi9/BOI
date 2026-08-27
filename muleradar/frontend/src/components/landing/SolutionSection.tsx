@@ -17,7 +17,7 @@ export default function SolutionSection() {
                 'Intelligent Data Refinement (Missingness as a fraud signal)',
                 'Hybrid ML Engine (XGBoost, LightGBM + Isolation Forest)',
                 'NetworkX Graph Intelligence (Mule Ring & Layering Detection)',
-                'Fraud Kill Chain Analysis & Financial Damage Forecasting'
+                'Behavioral Fraud Pattern Analysis & Financial Damage Forecasting'
               ].map((item, i) => (
                 <li key={i} className="flex gap-x-3 items-center text-sm font-medium">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/20">
