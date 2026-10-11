@@ -67,23 +67,50 @@ These features help transform thousands of raw banking variables into signals th
 
 ---
 
-## 2. 🎯 Multi-stage Feature Selection
+## 2. 🎯 Multi-stage Feature Selection & Anti-Leakage Pipeline
 
-The ML pipeline operates on a high-dimensional banking dataset and progressively reduces the feature space.
+### Why the Feature-Selection Pipeline Matters
+The BOI dataset presents an extreme statistical challenge: **3,861 usable raw features vs. only 81 confirmed mule accounts** (an imbalanced ~0.89% fraud base rate). With a **47:1 feature-to-positive ratio**, unregularized machine learning models suffer from the curse of dimensionality—readily memorizing the 81 historical accounts with near-perfect training accuracy while failing entirely on unseen fraud patterns in deployment.
+
+A structured multi-stage selection pipeline is critical to:
+- **Prevent Overfitting & Memorization**: Filtering out thousands of noisy, uninformative columns so models learn genuine behavioral dynamics rather than idiosyncratic noise.
+- **Eliminate Multicollinearity**: Purging redundant variations of transaction counts, time windows, and volume deviations that inflate tree variance and destabilize split importance.
+- **Maintain Low Latency & High Explainability**: Pruning the feature space to an optimal subset allows sub-150ms real-time inference and generates clean, high-fidelity SHAP attributions for compliance audits and FIU-IND Suspicious Activity Report (SAR) generation.
 
 ```mermaid
 flowchart TD
-    A[Raw Banking Features] --> B[Remove Leakage / Post-event Fields]
-    B --> C[Safe Behavioral Variance Screening]
-    C --> D[Correlation Filtering]
-    D --> E[LightGBM Feature Ranking]
-    E --> F[Remove Deceptive Proxy Features]
-    F --> G[Final Model Feature Set]
+    A["Raw Banking Features (3,861)"] --> B["Drop Post-Investigation Leakage (F3895–F3923)"]
+    B --> C["Stage 1: Safe Behavioral Variance & Organic Overlap (~2,000–2,500)"]
+    C --> D["Stage 2: Multicollinearity Correlation Filter (|r| > 0.90) (~1,200–1,500)"]
+    D --> E["Stage 3: Regularized LightGBM Gain Ranking (Top 80)"]
+    E --> F["Stage 4: Deceptive Proxy Purging & Domain Fusion"]
+    F --> G["Final Production Feature Set (67 / 50 Core Features)"]
 ```
 
-The training pipeline explicitly removes post-investigation information and avoids using `account_id` as an ML feature.
+### The Four-Stage Selection Funnel
 
-This is important because fraud models can otherwise learn **what happened after an investigation**, rather than learning the behavioral characteristics that existed before the decision.
+| Stage | Pipeline Step | Criteria & Decision Rules | Feature Count | Impact & Rationale |
+|:---:|:---|:---|:---:|:---|
+| **Input** | **Raw Usable Space** | Drop post-investigation outcome columns (`F3895`–`F3923`) and non-features (`account_id`, target `F3924`, timestamp `F2230`). | **3,861** | Baseline high-dimensional feature pool. |
+| **Stage 1** | **Safe Variance & Organic Overlap** | • Drop columns where missingness discrepancy between normal and mule accounts exceeds 50% (`\|pct_missing_norm - pct_missing_mule\| > 0.50`).<br>• Drop near-constant columns with zero intra-class variance (`nunique <= 1` for normal or mules).<br>• Enforce organic value range overlap (`has_organic_overlap` requiring $\ge 5\%$ range intersection between classes). | **~2,000 – 2,500** | Eliminates uninformative and artificially separable columns with zero loss of genuine predictive signal. |
+| **Stage 2** | **Correlation Filtering** | • Compute pairwise Pearson correlation matrix across numeric candidate features.<br>• For feature pairs with absolute correlation $\|r\| > 0.90$, prune the redundant column and preserve the higher signal predictor. | **~1,200 – 1,500** | Removes redundant transaction and volume variants, reducing multicollinearity and noise by 30%–40%. |
+| **Stage 3** | **LightGBM Gain Importance** | • Train a regularized LightGBM classifier (`n_estimators=100`, `num_leaves=31`, `min_child_samples=20`, `class_weight='balanced'`) strictly on the isolated feature-selection split.<br>• Filter features with importance gain $> 0.001$ and select the top-ranking candidates. | **Top 80** | Isolates the most potent non-linear, multi-variate predictive signals from tree split gains. |
+| **Stage 4** | **Deceptive Proxy Purging & Domain Fusion** | • **Purge 13 deceptive post-event proxy features** (`F3348`, `F1057`, `F1921`, `F3484`, `F3805`, `F1597`, `F3487`, `F2956`, `F2583`, `F2350`, `F3534`, `F2487`, `F3799`) that leak post-freeze/investigation signals.<br>• Fuse surviving top tree features with the **18 bank-mandated domain features** and engineered behavioral signals (pass-through, dormant activation, cash-out). | **67 Final** *(or 50 core operational)* | Yields a mathematically robust, domain-validated, and leakage-free production feature set. |
+
+### Post-Investigation Data Leakage Safeguards & Held-Out Isolation
+
+In fraud detection systems, models often achieve artificially inflated offline scores by inadvertently exploiting signals created *after* fraud has been detected or investigated. MuleRadar enforces strict architectural safeguards:
+
+1. **Strict 3-Way Stratified Data Splitting**:
+   - **Step 1 (Hold-Out Test Isolation)**: A **20% hold-out test set** (`df_test_raw`) is carved out immediately before any imputation, filtering, or feature selection takes place. This held-out test partition is strictly quarantined until final benchmark evaluation.
+   - **Step 2 (Train Pool Partitioning)**: The remaining 80% training data is subdivided into a dedicated **Feature Selection split** (`df_fs_raw`, 25%) and a **Cross-Validation Tuning split** (`df_cv_raw`, 75%).
+   - **Zero Evaluation Leakage**: All variance thresholds, correlation matrices, and LightGBM feature rankings are learned **exclusively on `df_fs_raw`**. Neither the CV tuning folds nor the held-out test split are ever touched during feature selection, completely eliminating selection bias and target leakage.
+2. **Explicit Removal of Post-Investigation Outcome Columns**:
+   - Fields `F3895` through `F3923` reflect actions taken after an account has been flagged or investigated (e.g., freeze dates, administrative audit remarks, dispute status). These are permanently excluded before training.
+3. **Purging Deceptive Post-Event Proxy Features**:
+   - 13 specific features exhibited deceptive correlations driven by administrative logging side-effects rather than pre-crime account activity. The pipeline explicitly purges these to prevent shortcut learning.
+4. **Account Identifier Isolation**:
+   - `account_id` is maintained strictly for investigator UI identity, audit logs, and graph relationship mapping, but is excluded from model feature matrices so trees cannot memorize account IDs.
 
 ---
 
@@ -327,10 +354,10 @@ BOI/
 │
 ├── README.md
 ├── Bank of India (BOI) Hackathon 2026.md
-├── Description.xlsx
 │
 └── muleradar/
     │
+    ├── Description.xlsx
     ├── frontend/
     │   ├── public/
     │   ├── src/
@@ -404,90 +431,93 @@ cd BOI/muleradar
 
 # 🐍 2. Backend Setup
 
-From the project root:
+From `muleradar/`:
 
+**macOS / Linux:**
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cd ..
+python3 -m uvicorn backend.app.main:app --reload
+```
+
+**Windows (PowerShell):**
 ```powershell
 cd backend
 py -3.11 -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-Then return to the project root:
-
-```powershell
 cd ..
-```
-
-Start the backend from the **project root**:
-
-```powershell
 python -m uvicorn backend.app.main:app --reload
 ```
 
-Backend:
-
-```text
-http://127.0.0.1:8000
-```
-
-Swagger documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Health check:
-
-```text
-http://127.0.0.1:8000/health
-```
+- Backend API: `http://127.0.0.1:8000`
+- Swagger documentation: `http://127.0.0.1:8000/docs`
+- Health check: `http://127.0.0.1:8000/health`
 
 ---
 
 # ⚛️ 3. Frontend Setup
 
-Open a **second terminal**.
+Open a **second terminal**. From `muleradar/frontend`:
 
-From the project root:
-
-```powershell
-cd muleradar\frontend
+```bash
+cd muleradar/frontend
 npm install
 npm run dev
 ```
 
-Vite will provide the frontend development URL, normally:
-
-```text
-http://localhost:5173
-```
-
-The frontend communicates with the FastAPI backend running on port `8000`.
+The frontend development console runs at: `http://localhost:5173`.
+The frontend communicates directly with the FastAPI backend running on port `8000`.
 
 ---
 
-# 🔄 Running Both Together
+# 🧠 4. ML Pipeline Setup & Training
 
-You should have two terminals:
+To train the machine learning ensemble from scratch:
 
-### Terminal 1 — Backend
+1. Place `boi_dataset.csv` in `muleradar/ml_pipeline/data/` (or project root).
+2. Install ML pipeline dependencies:
+   ```bash
+   cd muleradar/ml_pipeline
+   pip install -r requirements.txt
+   ```
+3. Execute the training pipeline:
+   ```bash
+   python src/models/train.py
+   ```
+4. Verify live inference:
+   ```bash
+   python -c "from analyzer import MuleRiskAnalyzer; a = MuleRiskAnalyzer(); print(a.engine_status)"
+   ```
+   *(Prints `Live Ensemble Model Active` when dataset and trained models are detected).*
 
-```powershell
-cd D:\Hackathons\BOI\muleradar
-.\backend\venv\Scripts\Activate.ps1
-python -m uvicorn backend.app.main:app --reload
-```
+---
 
-### Terminal 2 — Frontend
+# 🐳 5. Docker Compose (Full-Stack Deployment)
 
-```powershell
-cd D:\Hackathons\BOI\muleradar\frontend
-npm run dev
-```
+Run both the FastAPI backend and React frontend together in Docker:
 
-Architecture during development:
+1. Configure environment:
+   ```bash
+   cd muleradar
+   cp .env.example .env
+   ```
+2. Build and start containers:
+   ```bash
+   docker compose up --build
+   ```
+3. Access services:
+   - Backend API & Health Check: `http://localhost:8000/health`
+   - Frontend Console: `http://localhost:3000`
+
+---
+
+# 🔄 System Architecture During Development
 
 ```mermaid
 flowchart LR

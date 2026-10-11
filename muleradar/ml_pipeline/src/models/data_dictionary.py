@@ -3,6 +3,7 @@ Loads BOI's real data dictionary and exposes a programmatic lookup
 so the rest of the pipeline never has to guess what an F-code means.
 """
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 import pandas as pd
 
@@ -51,8 +52,26 @@ class DataDictionary:
         ]
         return pd.DataFrame(rows, columns=["Feature", "Variable_Name", "Description"])
 
-def load_dictionary(path: str = "Description.xlsx") -> DataDictionary:
-    df = pd.read_excel(path, sheet_name="Data_Dicitionary")
+def resolve_dictionary_path(path: Optional[str] = None) -> Path:
+    if path:
+        p = Path(path)
+        if p.exists():
+            return p
+    search_paths = [
+        Path(__file__).resolve().parents[3] / "Description.xlsx",  # muleradar/Description.xlsx
+        Path(__file__).resolve().parents[4] / "Description.xlsx",  # BOI/Description.xlsx
+        Path.cwd() / "Description.xlsx",
+        Path.cwd() / "muleradar" / "Description.xlsx",
+        Path.cwd().parent / "Description.xlsx",
+    ]
+    for sp in search_paths:
+        if sp.exists():
+            return sp
+    return search_paths[0]
+
+def load_dictionary(path: Optional[str] = None) -> DataDictionary:
+    resolved = resolve_dictionary_path(path)
+    df = pd.read_excel(resolved, sheet_name="Data_Dicitionary")
     return DataDictionary(df)
 
 # --- CORRECTED COLUMN ROLES ---

@@ -8,7 +8,20 @@ from pathlib import Path
 from typing import Optional
 import openpyxl
 
-_DICT_PATH = Path(__file__).resolve().parent.parent.parent.parent.parent / "Description.xlsx"
+def _find_dict_path() -> Path:
+    search_paths = [
+        Path(__file__).resolve().parents[3] / "Description.xlsx",  # muleradar/Description.xlsx
+        Path(__file__).resolve().parents[4] / "Description.xlsx",  # BOI/Description.xlsx
+        Path.cwd() / "Description.xlsx",
+        Path.cwd() / "muleradar" / "Description.xlsx",
+        Path.cwd().parent / "Description.xlsx",
+    ]
+    for sp in search_paths:
+        if sp.exists():
+            return sp
+    return search_paths[0]
+
+_DICT_PATH = _find_dict_path()
 _cache: Optional[dict] = None
 
 def _load():
