@@ -223,30 +223,6 @@ Examples of investigator-facing behavioral explanations can include concepts suc
 
 ---
 
-# 🕸️ Network Intelligence
-
-MuleRadar also exposes account-level transaction/network context.
-
-```mermaid
-flowchart TD
-    A[Target Account] --> B[Incoming Sources]
-    A --> C[Outgoing Destinations]
-    A --> D[Cash-out Destinations]
-
-    B --> E[Account Neighborhood]
-    C --> E
-    D --> E
-
-    E --> F[Network Connections]
-    F --> G[Investigator UI]
-```
-
-This allows investigators to see an account together with related source/destination nodes and transaction amounts.
-
-The current implementation includes a graph-initialization layer for account-neighborhood intelligence.
-
----
-
 # 👩‍💻 Human-in-the-Loop Investigation
 
 MuleRadar is designed to support investigators rather than blindly automate every decision.
