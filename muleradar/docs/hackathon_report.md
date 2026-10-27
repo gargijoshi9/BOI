@@ -13,7 +13,7 @@
 
 ## 2. Problem Statement & Context
 *Define the core challenges of detecting mule accounts.*
-- **Base Rate Fallacy:** Imbalanced datasets (e.g., < 1% actual fraud rate).
+- **Base Rate Fallacy & Extreme Imbalance:** Highly skewed banking distribution with only 81 confirmed mule accounts out of 9,082 accounts (0.89% fraud base rate; 47:1 feature-to-positive ratio across 3,861 raw columns).
 - **Concept Drift:** Syndicates continuously adapting routing strategies (e.g., smurfing, layering).
 - **Explainability vs. Enforcement:** Ensuring freeze actions are mathematically sound and compliant.
 - **Siloed Systems:** Disconnection between transaction anomaly filters and regulatory FIU-IND reporting.
@@ -23,7 +23,7 @@
 ## 3. Solution Architecture
 *Detail how data flows through the MuleRadar ecosystem.*
 ```
-[Raw Bank Data & Feeds] ──> [Data Refinement & Shadowing] ──> [Feature Factory]
+[Raw Bank Data & Feeds] ──> [Data Refinement & Shadowing] ──> [Feature Factory (72 Features)]
                                                                   │
 ┌───────────────────────────────┬─────────────────────────────────┘
 ▼                               ▼                                 ▼
@@ -49,12 +49,13 @@
 - **Shadow Columns:** Mapping missingness flags to identify absence of standard transactional indicators.
 - **Smart Imputation:** Group-wise median scaling, target-encoded categories (occupation, account type), and winsorization.
 
-### 4.3. Domain-Driven Feature Factory
+### 4.3. Domain-Driven Feature Factory & Selection (72 Features)
+- **4-Stage Selection Funnel:** Prunes 3,861 raw features via variance screening, multicollinearity correlation filtering (|r| > 0.90), LightGBM importance ranking, and deceptive post-event proxy purging down to **72 final production features**.
 - **Pass-through Ratio:** Monitoring instant transfer loops.
 - **Concentration Metrics:** Network inflow fan-ins.
 
 ### 4.4. Hybrid Detection Engine
-- Ensemble classification models (XGBoost, CatBoost, LightGBM).
+- Ensemble classification models (XGBoost, CatBoost, LightGBM) trained on the 72 selected features.
 - Unsupervised outlier scoring (Isolation Forest, robust PCA).
 
 ### 4.5. Graph Ring Network (GNN)

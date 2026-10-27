@@ -49,6 +49,18 @@ For example, the backend can evaluate an account such as `14` and return:
 
 ---
 
+# 📸 Platform Preview & Interface
+
+| View | Screenshot |
+|:---|:---|
+| **Landing Page & Gateway**<br>Entry portal to the MuleRadar AML intelligence console. | ![Landing Page](muleradar/docs/screenshots/Landing_page.png) |
+| **Fraud Operations Console**<br>Interactive triage table displaying account risk scores, classifications, and queue priorities. | ![Operations Dashboard](muleradar/docs/screenshots/dashboard-1.png) |
+| **Deep Account Investigation**<br>Comprehensive account inspection panel showing behavioral indicators, network topology, and risk signals. | ![Account Investigation](muleradar/docs/screenshots/dashboard-2.png) |
+| **Explainable AI (SHAP Attributions)**<br>Local waterfall feature impact breakdown explaining exact reasons for risk escalation. | ![SHAP Explanations](muleradar/docs/screenshots/SHAP.png) |
+| **Audit Trail & Governance**<br>Auditable decision log and regulatory compliance tracking for investigator actions. | ![Audit Trail](muleradar/docs/screenshots/AUDIT.png) |
+
+---
+
 # ✨ Key Features
 
 ## 1. 🧬 Behavioral Feature Engineering
@@ -84,18 +96,18 @@ flowchart TD
     C --> D["Stage 2: Multicollinearity Correlation Filter (|r| > 0.90) (~1,200–1,500)"]
     D --> E["Stage 3: Regularized LightGBM Gain Ranking (Top 80)"]
     E --> F["Stage 4: Deceptive Proxy Purging & Domain Fusion"]
-    F --> G["Final Production Feature Set (67 / 50 Core Features)"]
+    F --> G["Final Production Feature Set (72 Features)"]
 ```
 
 ### The Four-Stage Selection Funnel
 
 | Stage | Pipeline Step | Criteria & Decision Rules | Feature Count | Impact & Rationale |
 |:---:|:---|:---|:---:|:---|
-| **Input** | **Raw Usable Space** | Drop post-investigation outcome columns (`F3895`–`F3923`) and non-features (`account_id`, target `F3924`, timestamp `F2230`). | **3,861** | Baseline high-dimensional feature pool. |
+| **Input** | **Raw Usable Space** | Drop post-investigation outcome columns (`F3895`–`F3923`) and non-features (`account_id`, target `F3924`, timestamp `F2230`). | **3,861** | Baseline high-dimensional feature pool across 9,082 accounts (0.89% fraud base rate). |
 | **Stage 1** | **Safe Variance & Organic Overlap** | • Drop columns where missingness discrepancy between normal and mule accounts exceeds 50% (`\|pct_missing_norm - pct_missing_mule\| > 0.50`).<br>• Drop near-constant columns with zero intra-class variance (`nunique <= 1` for normal or mules).<br>• Enforce organic value range overlap (`has_organic_overlap` requiring $\ge 5\%$ range intersection between classes). | **~2,000 – 2,500** | Eliminates uninformative and artificially separable columns with zero loss of genuine predictive signal. |
 | **Stage 2** | **Correlation Filtering** | • Compute pairwise Pearson correlation matrix across numeric candidate features.<br>• For feature pairs with absolute correlation $\|r\| > 0.90$, prune the redundant column and preserve the higher signal predictor. | **~1,200 – 1,500** | Removes redundant transaction and volume variants, reducing multicollinearity and noise by 30%–40%. |
 | **Stage 3** | **LightGBM Gain Importance** | • Train a regularized LightGBM classifier (`n_estimators=100`, `num_leaves=31`, `min_child_samples=20`, `class_weight='balanced'`) strictly on the isolated feature-selection split.<br>• Filter features with importance gain $> 0.001$ and select the top-ranking candidates. | **Top 80** | Isolates the most potent non-linear, multi-variate predictive signals from tree split gains. |
-| **Stage 4** | **Deceptive Proxy Purging & Domain Fusion** | • **Purge 13 deceptive post-event proxy features** (`F3348`, `F1057`, `F1921`, `F3484`, `F3805`, `F1597`, `F3487`, `F2956`, `F2583`, `F2350`, `F3534`, `F2487`, `F3799`) that leak post-freeze/investigation signals.<br>• Fuse surviving top tree features with the **18 bank-mandated domain features** and engineered behavioral signals (pass-through, dormant activation, cash-out). | **67 Final** *(or 50 core operational)* | Yields a mathematically robust, domain-validated, and leakage-free production feature set. |
+| **Stage 4** | **Deceptive Proxy Purging & Domain Fusion** | • **Purge deceptive post-event proxy features** (`F3348`, `F1057`, `F1921`, `F3484`, `F3805`, `F1597`, `F3487`, `F2956`, `F2583`, `F2350`, `F3534`, `F2487`, `F3799`) that leak post-freeze/investigation signals.<br>• Fuse surviving top tree features with the **18 bank-mandated domain features** and engineered behavioral signals (pass-through, dormant activation, cash-out). | **72 Final Features** | Yields a mathematically robust, domain-validated, and leakage-free production feature set serialized in `mule_pipeline_v2.pkl`. |
 
 ### Post-Investigation Data Leakage Safeguards & Held-Out Isolation
 
@@ -221,6 +233,9 @@ Examples of investigator-facing behavioral explanations can include concepts suc
 
 > **Note:** The exact explanation shown depends on the features present in the account and the feature dictionary mappings available in the current model/data version.
 
+### SHAP Feature Attribution Interface
+![SHAP Attribution Interface](muleradar/docs/screenshots/SHAP.png)
+
 ---
 
 # 👩‍💻 Human-in-the-Loop Investigation
@@ -247,6 +262,9 @@ flowchart TD
 ```
 
 The backend exposes a review queue and audit-trail functionality so that investigator decisions can be recorded.
+
+### Audit Trail & Investigator Decision Log
+![Audit Trail Interface](muleradar/docs/screenshots/AUDIT.png)
 
 ---
 
